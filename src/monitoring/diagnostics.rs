@@ -11,7 +11,7 @@ use crate::ip::route::Route;
 use crate::ip::Family;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiagnosticReport {
     pub devices: Vec<crate::device::NetworkDevice>,
     pub routes_v4: Vec<RouteSummary>,
