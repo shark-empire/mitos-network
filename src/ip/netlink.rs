@@ -19,7 +19,7 @@
 //! kernel ABI expects.
 
 #![allow(dead_code)] // this module defines the full rtnetlink ABI surface; not every
-                      // constant is consumed yet by every caller.
+                     // constant is consumed yet by every caller.
 
 use crate::errors::{NetworkError, Result};
 use std::collections::HashMap;
@@ -221,7 +221,9 @@ impl NlSocket {
             if rc < 0 {
                 let e = std::io::Error::last_os_error();
                 libc::close(fd);
-                return Err(NetworkError::Netlink(format!("bind(AF_NETLINK) failed: {e}")));
+                return Err(NetworkError::Netlink(format!(
+                    "bind(AF_NETLINK) failed: {e}"
+                )));
             }
             Ok(NlSocket { fd, seq: 1 })
         }
@@ -293,9 +295,7 @@ impl NlSocket {
         let mut buf = vec![0u8; 32 * 1024];
         loop {
             // SAFETY: buf is sized and owned for the duration of the call.
-            let n = unsafe {
-                libc::recv(self.fd, buf.as_mut_ptr() as *mut _, buf.len(), 0)
-            };
+            let n = unsafe { libc::recv(self.fd, buf.as_mut_ptr() as *mut _, buf.len(), 0) };
             if n < 0 {
                 return Err(NetworkError::Netlink(format!(
                     "recv() failed: {}",
@@ -416,8 +416,17 @@ pub fn build_ifaddrmsg(family: u8, prefixlen: u8, index: i32) -> Vec<u8> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn build_rtmsg(family: u8, dst_len: u8, table: u8, protocol: u8, scope: u8, rtype: u8) -> Vec<u8> {
-    vec![family, dst_len, 0, 0, table, protocol, scope, rtype, 0, 0, 0, 0]
+pub fn build_rtmsg(
+    family: u8,
+    dst_len: u8,
+    table: u8,
+    protocol: u8,
+    scope: u8,
+    rtype: u8,
+) -> Vec<u8> {
+    vec![
+        family, dst_len, 0, 0, table, protocol, scope, rtype, 0, 0, 0, 0,
+    ]
 }
 
 /// `fib_rule_hdr`: family(1) dst_len(1) src_len(1) tos(1) table(1)
@@ -450,7 +459,11 @@ pub fn parse_link(body: &[u8]) -> Option<LinkInfo> {
     let attrs = parse_attrs(&body[16..]);
     let name = attrs
         .get(&IFLA_IFNAME)
-        .map(|b| String::from_utf8_lossy(b).trim_end_matches('\0').to_string())
+        .map(|b| {
+            String::from_utf8_lossy(b)
+                .trim_end_matches('\0')
+                .to_string()
+        })
         .unwrap_or_default();
     let mtu = attrs
         .get(&IFLA_MTU)
@@ -469,11 +482,21 @@ pub fn parse_link(body: &[u8]) -> Option<LinkInfo> {
     let operstate = attrs.get(&IFLA_OPERSTATE).and_then(|b| b.first().copied());
     let kind = attrs.get(&IFLA_LINKINFO).and_then(|linkinfo| {
         let nested = parse_attrs(linkinfo);
-        nested
-            .get(&IFLA_INFO_KIND)
-            .map(|b| String::from_utf8_lossy(b).trim_end_matches('\0').to_string())
+        nested.get(&IFLA_INFO_KIND).map(|b| {
+            String::from_utf8_lossy(b)
+                .trim_end_matches('\0')
+                .to_string()
+        })
     });
-    Some(LinkInfo { index, flags, name, mtu, hwaddr, operstate, kind })
+    Some(LinkInfo {
+        index,
+        flags,
+        name,
+        mtu,
+        hwaddr,
+        operstate,
+        kind,
+    })
 }
 
 pub struct AddrInfo {
@@ -497,10 +520,18 @@ pub fn parse_addr(body: &[u8]) -> Option<AddrInfo> {
         .or_else(|| attrs.get(&IFA_ADDRESS))
         .cloned()
         .unwrap_or_default();
-    let label = attrs
-        .get(&IFA_LABEL)
-        .map(|b| String::from_utf8_lossy(b).trim_end_matches('\0').to_string());
-    Some(AddrInfo { index, family, prefixlen, address, label })
+    let label = attrs.get(&IFA_LABEL).map(|b| {
+        String::from_utf8_lossy(b)
+            .trim_end_matches('\0')
+            .to_string()
+    });
+    Some(AddrInfo {
+        index,
+        family,
+        prefixlen,
+        address,
+        label,
+    })
 }
 
 pub struct RouteInfo {
@@ -531,5 +562,13 @@ pub fn parse_route(body: &[u8]) -> Option<RouteInfo> {
         .get(&RTA_PRIORITY)
         .and_then(|b| b.get(0..4))
         .map(|b| u32::from_ne_bytes(b.try_into().unwrap()));
-    Some(RouteInfo { family, dst_len, table, dst, gateway, oif, priority })
+    Some(RouteInfo {
+        family,
+        dst_len,
+        table,
+        dst,
+        gateway,
+        oif,
+        priority,
+    })
 }

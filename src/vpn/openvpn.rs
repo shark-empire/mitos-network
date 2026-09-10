@@ -19,9 +19,15 @@ static CHILDREN: Mutex<Option<HashMap<String, Child>>> = Mutex::new(None);
 /// itself is not a secret -- it's the certs/keys or auth credentials
 /// *inside* it that are, and username/password auth is handled below
 /// via a separately-supplied secret rather than embedding it in the file).
-pub fn connect(config_path: &str, secrets: &dyn SecretsBackend, profile_id: &str) -> Result<VpnSession> {
+pub fn connect(
+    config_path: &str,
+    secrets: &dyn SecretsBackend,
+    profile_id: &str,
+) -> Result<VpnSession> {
     if !std::path::Path::new(config_path).is_file() {
-        return Err(NetworkError::Vpn(format!("OpenVPN config '{config_path}' not found")));
+        return Err(NetworkError::Vpn(format!(
+            "OpenVPN config '{config_path}' not found"
+        )));
     }
 
     let mut cmd = Command::new("openvpn");
@@ -31,12 +37,17 @@ pub fn connect(config_path: &str, secrets: &dyn SecretsBackend, profile_id: &str
     // file pointing at a file we generate here, mode 0600, deleted
     // right after openvpn reads it at startup).
     let mut userpass_path = None;
-    if let (Some(user), Some(pass)) =
-        (secrets.get(profile_id, "auth-username")?, secrets.get(profile_id, "auth-password")?)
-    {
+    if let (Some(user), Some(pass)) = (
+        secrets.get(profile_id, "auth-username")?,
+        secrets.get(profile_id, "auth-password")?,
+    ) {
         let path = std::env::temp_dir().join(format!("mitos-ovpn-{profile_id}.auth"));
         {
-            let mut f = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(&path)?;
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&path)?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -50,9 +61,12 @@ pub fn connect(config_path: &str, secrets: &dyn SecretsBackend, profile_id: &str
         userpass_path = Some(path);
     }
 
-    cmd.arg("--daemon").arg(format!("mitos-openvpn-{profile_id}"));
+    cmd.arg("--daemon")
+        .arg(format!("mitos-openvpn-{profile_id}"));
 
-    let child = cmd.spawn().map_err(|e| NetworkError::Vpn(format!("failed to spawn openvpn: {e}")))?;
+    let child = cmd
+        .spawn()
+        .map_err(|e| NetworkError::Vpn(format!("failed to spawn openvpn: {e}")))?;
 
     // openvpn re-execs itself into the background with --daemon, so the
     // Child handle here tracks the launcher process, not necessarily
@@ -73,9 +87,16 @@ pub fn connect(config_path: &str, secrets: &dyn SecretsBackend, profile_id: &str
     // introspection we don't know which one this session got, so a
     // logical placeholder tracks it internally for now.
     let logical_name = format!("openvpn-{profile_id}");
-    CHILDREN.lock().unwrap().get_or_insert_with(HashMap::new).insert(logical_name.clone(), child);
+    CHILDREN
+        .lock()
+        .unwrap()
+        .get_or_insert_with(HashMap::new)
+        .insert(logical_name.clone(), child);
 
-    Ok(VpnSession { interface_name: logical_name, kind: VpnKind::OpenVpn })
+    Ok(VpnSession {
+        interface_name: logical_name,
+        kind: VpnKind::OpenVpn,
+    })
 }
 
 pub fn disconnect(logical_name: &str) -> Result<()> {
@@ -84,7 +105,9 @@ pub fn disconnect(logical_name: &str) -> Result<()> {
         .unwrap()
         .as_mut()
         .and_then(|m| m.remove(logical_name))
-        .ok_or_else(|| NetworkError::NotFound(format!("no tracked openvpn process for '{logical_name}'")))?;
+        .ok_or_else(|| {
+            NetworkError::NotFound(format!("no tracked openvpn process for '{logical_name}'"))
+        })?;
     child.kill().ok();
     let _ = child.wait();
     Ok(())

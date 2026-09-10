@@ -10,7 +10,10 @@ use crate::firewall::Firewall;
 /// kernel switch, not a per-link or per-route attribute, so there's no
 /// rtnetlink message for it.
 pub fn set_ipv4_forwarding(enabled: bool) -> Result<()> {
-    std::fs::write("/proc/sys/net/ipv4/ip_forward", if enabled { "1" } else { "0" })?;
+    std::fs::write(
+        "/proc/sys/net/ipv4/ip_forward",
+        if enabled { "1" } else { "0" },
+    )?;
     Ok(())
 }
 

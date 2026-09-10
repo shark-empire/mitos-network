@@ -20,7 +20,10 @@ pub fn init(ctrl_dir: &str) {
 }
 
 fn ctrl_dir() -> String {
-    CTRL_DIR.get().cloned().unwrap_or_else(|| "/run/mitos-network/wpa".to_string())
+    CTRL_DIR
+        .get()
+        .cloned()
+        .unwrap_or_else(|| "/run/mitos-network/wpa".to_string())
 }
 
 /// Joins `ssid` on `ifname`, waiting for association to complete.
@@ -29,7 +32,12 @@ fn ctrl_dir() -> String {
 /// part of bringing a Wi-Fi device up -- see `device::link::bring_up`
 /// plus the daemon startup sequence in `docs/architecture.md` -- this
 /// function only drives an already-running instance's control socket).
-pub fn connect(ifname: &str, ssid: &str, security: SecurityType, passphrase: Option<&str>) -> Result<()> {
+pub fn connect(
+    ifname: &str,
+    ssid: &str,
+    security: SecurityType,
+    passphrase: Option<&str>,
+) -> Result<()> {
     crate::security::validation::validate_ssid(ssid)?;
     let ctrl = WpaCtrl::connect(&ctrl_dir(), ifname)?;
 

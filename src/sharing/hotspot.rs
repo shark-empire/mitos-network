@@ -27,7 +27,11 @@ pub fn start(
 ) -> Result<HotspotSession> {
     let iface = crate::ip::interface::get_by_name(interface)?;
     crate::ip::address::flush(iface.index)?;
-    crate::ip::address::add(iface.index, std::net::IpAddr::V4(AP_SERVER_IP), AP_PREFIXLEN)?;
+    crate::ip::address::add(
+        iface.index,
+        std::net::IpAddr::V4(AP_SERVER_IP),
+        AP_PREFIXLEN,
+    )?;
     crate::device::link::bring_up(iface.index)?;
 
     crate::wifi::hotspot::start(&HotspotConfig {
@@ -53,7 +57,11 @@ pub fn start(
         super::nat::enable(interface, wan, firewall)?;
     }
 
-    Ok(HotspotSession { interface: interface.to_string(), dhcp: Some(dhcp), uplink: uplink.map(str::to_string) })
+    Ok(HotspotSession {
+        interface: interface.to_string(),
+        dhcp: Some(dhcp),
+        uplink: uplink.map(str::to_string),
+    })
 }
 
 pub fn stop(mut session: HotspotSession, firewall: &mut Firewall) -> Result<()> {

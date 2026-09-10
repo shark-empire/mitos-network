@@ -54,7 +54,10 @@ pub fn driver_of(name: &str) -> Option<String> {
 }
 
 fn format_mac(mac: [u8; 6]) -> String {
-    mac.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(":")
+    mac.iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join(":")
 }
 
 /// A one-shot full scan of `/sys/class/net` + netlink, used at startup
@@ -117,8 +120,12 @@ pub enum HotplugEvent {
 /// to `tx`. This is the *only* thread besides the manager's own command
 /// loop that mitos-network normally runs continuously -- everything
 /// else (IPC connections, DHCP timers) is on-demand or scheduled.
-pub fn spawn_monitor(tx: std::sync::mpsc::Sender<HotplugEvent>) -> Result<std::thread::JoinHandle<()>> {
-    use crate::ip::monitor::{Monitor, RawEvent, RTMGRP_IPV4_IFADDR, RTMGRP_IPV6_IFADDR, RTMGRP_LINK};
+pub fn spawn_monitor(
+    tx: std::sync::mpsc::Sender<HotplugEvent>,
+) -> Result<std::thread::JoinHandle<()>> {
+    use crate::ip::monitor::{
+        Monitor, RawEvent, RTMGRP_IPV4_IFADDR, RTMGRP_IPV6_IFADDR, RTMGRP_LINK,
+    };
 
     let groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR;
     let monitor = Monitor::new(groups)?;

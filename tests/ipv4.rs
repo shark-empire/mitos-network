@@ -16,8 +16,14 @@ fn subnet_mask_common_prefixes() {
 #[test]
 fn broadcast_and_network_addresses() {
     let addr = Ipv4Addr::new(10, 20, 30, 40);
-    assert_eq!(ipv4::network_address(addr, 24), Ipv4Addr::new(10, 20, 30, 0));
-    assert_eq!(ipv4::broadcast_address(addr, 24), Ipv4Addr::new(10, 20, 30, 255));
+    assert_eq!(
+        ipv4::network_address(addr, 24),
+        Ipv4Addr::new(10, 20, 30, 0)
+    );
+    assert_eq!(
+        ipv4::broadcast_address(addr, 24),
+        Ipv4Addr::new(10, 20, 30, 255)
+    );
 }
 
 #[test]

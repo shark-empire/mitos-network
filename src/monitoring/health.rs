@@ -17,7 +17,9 @@ pub fn device_health(device: &NetworkDevice, stats: Option<&DeviceStatistics>) -
     match device.state {
         DeviceState::Unmanaged | DeviceState::Unavailable => HealthStatus::Unknown,
         DeviceState::Failed => HealthStatus::Unhealthy,
-        DeviceState::Connecting | DeviceState::IpConfiguring | DeviceState::Deactivating => HealthStatus::Degraded,
+        DeviceState::Connecting | DeviceState::IpConfiguring | DeviceState::Deactivating => {
+            HealthStatus::Degraded
+        }
         DeviceState::Disconnected => HealthStatus::Unknown,
         DeviceState::Activated => {
             if !device.carrier {

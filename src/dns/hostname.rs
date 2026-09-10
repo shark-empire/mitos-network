@@ -28,7 +28,9 @@ pub fn current() -> Option<String> {
 /// `hostnamectl` leaves things.
 pub fn set(name: &str) -> Result<()> {
     if name.is_empty() || name.len() > 253 {
-        return Err(NetworkError::Parse("hostname must be 1-253 characters".into()));
+        return Err(NetworkError::Parse(
+            "hostname must be 1-253 characters".into(),
+        ));
     }
     // SAFETY: name's bytes are valid for the length passed and outlive the call.
     let rc = unsafe { libc::sethostname(name.as_ptr() as *const libc::c_char, name.len()) };

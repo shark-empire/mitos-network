@@ -29,10 +29,26 @@ pub struct Zone {
 /// interface".
 pub fn builtin_zones() -> Vec<Zone> {
     vec![
-        Zone { name: "public".into(), default_policy: DefaultPolicy::Drop, interfaces: Vec::new() },
-        Zone { name: "home".into(), default_policy: DefaultPolicy::Drop, interfaces: Vec::new() },
-        Zone { name: "trusted".into(), default_policy: DefaultPolicy::Accept, interfaces: Vec::new() },
-        Zone { name: "block".into(), default_policy: DefaultPolicy::Drop, interfaces: Vec::new() },
+        Zone {
+            name: "public".into(),
+            default_policy: DefaultPolicy::Drop,
+            interfaces: Vec::new(),
+        },
+        Zone {
+            name: "home".into(),
+            default_policy: DefaultPolicy::Drop,
+            interfaces: Vec::new(),
+        },
+        Zone {
+            name: "trusted".into(),
+            default_policy: DefaultPolicy::Accept,
+            interfaces: Vec::new(),
+        },
+        Zone {
+            name: "block".into(),
+            default_policy: DefaultPolicy::Drop,
+            interfaces: Vec::new(),
+        },
     ]
 }
 

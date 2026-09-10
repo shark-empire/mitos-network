@@ -70,9 +70,18 @@ mod tests {
 
     #[test]
     fn signal_percent_maps_range() {
-        let n = WifiNetwork { ssid: "x".into(), bssid: "x".into(), frequency_mhz: 2412, signal_dbm: -50, security: SecurityType::Open };
+        let n = WifiNetwork {
+            ssid: "x".into(),
+            bssid: "x".into(),
+            frequency_mhz: 2412,
+            signal_dbm: -50,
+            security: SecurityType::Open,
+        };
         assert_eq!(n.signal_percent(), 100);
-        let n2 = WifiNetwork { signal_dbm: -100, ..n };
+        let n2 = WifiNetwork {
+            signal_dbm: -100,
+            ..n
+        };
         assert_eq!(n2.signal_percent(), 0);
     }
 }

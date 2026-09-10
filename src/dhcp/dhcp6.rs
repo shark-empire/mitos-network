@@ -76,7 +76,11 @@ pub struct StatelessInfo {
 /// the network's DHCPv6 server hands back. Used to supplement SLAAC
 /// with DNS servers, which router advertisements alone don't carry
 /// unless the network also runs RDNSS (RFC 8106).
-pub fn request_stateless_info(ifname: &str, mac: [u8; 6], timeout: Duration) -> Result<StatelessInfo> {
+pub fn request_stateless_info(
+    ifname: &str,
+    mac: [u8; 6],
+    timeout: Duration,
+) -> Result<StatelessInfo> {
     let scope_id = crate::ip::interface::get_by_name(ifname)?.index as u32;
     let sock = UdpSocket::bind(format!("[::]:{CLIENT_PORT}"))
         .map_err(|e| NetworkError::Dhcp(format!("bind udp/{CLIENT_PORT} failed: {e}")))?;

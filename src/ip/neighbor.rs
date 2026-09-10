@@ -76,7 +76,12 @@ pub fn list(ifindex: Option<i32>) -> Result<Vec<Neighbor>> {
                 }
             });
             if let Some(ip) = ip {
-                out.push(Neighbor { ifindex: idx, ip, mac, state: NeighborState::from_raw(state) });
+                out.push(Neighbor {
+                    ifindex: idx,
+                    ip,
+                    mac,
+                    state: NeighborState::from_raw(state),
+                });
             }
         }
     }

@@ -12,15 +12,27 @@ use super::network::WifiNetwork;
 const ROAM_HYSTERESIS_DBM: i32 = 8;
 
 pub fn best_bss<'a>(networks: &'a [WifiNetwork], ssid: &str) -> Option<&'a WifiNetwork> {
-    networks.iter().filter(|n| n.ssid == ssid).max_by_key(|n| n.signal_dbm)
+    networks
+        .iter()
+        .filter(|n| n.ssid == ssid)
+        .max_by_key(|n| n.signal_dbm)
 }
 
 /// Whether it's worth switching from `current_bssid` to whatever the
 /// strongest visible BSS for `ssid` is right now.
-pub fn should_roam(networks: &[WifiNetwork], ssid: &str, current_bssid: &str) -> Option<&WifiNetwork> {
-    let current_signal = networks.iter().find(|n| n.bssid == current_bssid).map(|n| n.signal_dbm)?;
+pub fn should_roam(
+    networks: &[WifiNetwork],
+    ssid: &str,
+    current_bssid: &str,
+) -> Option<&WifiNetwork> {
+    let current_signal = networks
+        .iter()
+        .find(|n| n.bssid == current_bssid)
+        .map(|n| n.signal_dbm)?;
     let candidate = best_bss(networks, ssid)?;
-    if candidate.bssid != current_bssid && candidate.signal_dbm - current_signal >= ROAM_HYSTERESIS_DBM {
+    if candidate.bssid != current_bssid
+        && candidate.signal_dbm - current_signal >= ROAM_HYSTERESIS_DBM
+    {
         Some(candidate)
     } else {
         None

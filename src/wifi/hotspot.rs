@@ -9,7 +9,9 @@
 //! is `sharing::hotspot`'s job, one layer up.
 
 use crate::errors::{NetworkError, Result};
-use crate::security::validation::{validate_interface_name, validate_ssid, validate_wpa_passphrase};
+use crate::security::validation::{
+    validate_interface_name, validate_ssid, validate_wpa_passphrase,
+};
 use std::collections::HashMap;
 use std::io::Write;
 use std::process::{Child, Command};
@@ -83,12 +85,19 @@ pub fn start(cfg: &HotspotConfig) -> Result<()> {
         .map_err(|e| NetworkError::Wifi(format!("failed to spawn hostapd: {e}")))?;
 
     let mut children = CHILDREN.lock().unwrap();
-    children.get_or_insert_with(HashMap::new).insert(cfg.interface.clone(), child);
+    children
+        .get_or_insert_with(HashMap::new)
+        .insert(cfg.interface.clone(), child);
     Ok(())
 }
 
 pub fn stop(ifname: &str) {
-    if let Some(mut child) = CHILDREN.lock().unwrap().as_mut().and_then(|m| m.remove(ifname)) {
+    if let Some(mut child) = CHILDREN
+        .lock()
+        .unwrap()
+        .as_mut()
+        .and_then(|m| m.remove(ifname))
+    {
         let _ = child.kill();
         let _ = child.wait();
     }
@@ -96,5 +105,10 @@ pub fn stop(ifname: &str) {
 }
 
 pub fn is_running(ifname: &str) -> bool {
-    CHILDREN.lock().unwrap().as_ref().map(|m| m.contains_key(ifname)).unwrap_or(false)
+    CHILDREN
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|m| m.contains_key(ifname))
+        .unwrap_or(false)
 }

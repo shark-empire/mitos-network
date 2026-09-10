@@ -2,7 +2,15 @@ use mitos_network::device::{capabilities, device::DeviceType, discovery, mac};
 use mitos_network::ip::interface::Interface;
 
 fn iface(name: &str, flags: u32, kind: Option<&str>) -> Interface {
-    Interface { index: 1, name: name.to_string(), flags, mtu: 1500, hwaddr: None, operstate: None, kind: kind.map(str::to_string) }
+    Interface {
+        index: 1,
+        name: name.to_string(),
+        flags,
+        mtu: 1500,
+        hwaddr: None,
+        operstate: None,
+        kind: kind.map(str::to_string),
+    }
 }
 
 #[test]
@@ -24,10 +32,22 @@ fn classify_loopback_by_flag() {
 
 #[test]
 fn classify_virtual_links_by_kind() {
-    assert_eq!(discovery::classify(&iface("br0", 0, Some("bridge"))), DeviceType::Bridge);
-    assert_eq!(discovery::classify(&iface("bond0", 0, Some("bond"))), DeviceType::Bond);
-    assert_eq!(discovery::classify(&iface("wg0", 0, Some("wireguard"))), DeviceType::Vpn);
-    assert_eq!(discovery::classify(&iface("gre0", 0, Some("gre"))), DeviceType::Tunnel);
+    assert_eq!(
+        discovery::classify(&iface("br0", 0, Some("bridge"))),
+        DeviceType::Bridge
+    );
+    assert_eq!(
+        discovery::classify(&iface("bond0", 0, Some("bond"))),
+        DeviceType::Bond
+    );
+    assert_eq!(
+        discovery::classify(&iface("wg0", 0, Some("wireguard"))),
+        DeviceType::Vpn
+    );
+    assert_eq!(
+        discovery::classify(&iface("gre0", 0, Some("gre"))),
+        DeviceType::Tunnel
+    );
 }
 
 #[test]

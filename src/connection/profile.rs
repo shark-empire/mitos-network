@@ -68,7 +68,11 @@ fn default_true() -> bool {
 }
 
 impl ConnectionProfile {
-    pub fn new_wifi(id: impl Into<String>, ssid: impl Into<String>, security: crate::wifi::security::SecurityType) -> Self {
+    pub fn new_wifi(
+        id: impl Into<String>,
+        ssid: impl Into<String>,
+        security: crate::wifi::security::SecurityType,
+    ) -> Self {
         let ssid = ssid.into();
         ConnectionProfile {
             id: id.into(),
@@ -82,7 +86,12 @@ impl ConnectionProfile {
             autoconnect: true,
             autoconnect_priority: 0,
             metered: false,
-            wifi: Some(WifiSettings { ssid, security, hidden: false, has_secret: security != crate::wifi::security::SecurityType::Open }),
+            wifi: Some(WifiSettings {
+                ssid,
+                security,
+                hidden: false,
+                has_secret: security != crate::wifi::security::SecurityType::Open,
+            }),
             vpn: None,
         }
     }

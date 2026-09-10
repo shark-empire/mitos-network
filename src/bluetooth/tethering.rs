@@ -15,9 +15,17 @@ fn run(args: &[&str]) -> Result<String> {
     let output = Command::new("bt-network")
         .args(args)
         .output()
-        .map_err(|e| NetworkError::Other(format!("failed to run bt-network (is bluez-tools installed?): {e}")))?;
+        .map_err(|e| {
+            NetworkError::Other(format!(
+                "failed to run bt-network (is bluez-tools installed?): {e}"
+            ))
+        })?;
     if !output.status.success() {
-        return Err(NetworkError::Other(format!("bt-network {} failed: {}", args.join(" "), String::from_utf8_lossy(&output.stderr))));
+        return Err(NetworkError::Other(format!(
+            "bt-network {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        )));
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }

@@ -18,7 +18,10 @@ pub struct DeviceStatistics {
 }
 
 fn read_counter(name: &str, counter: &str) -> u64 {
-    let path = Path::new("/sys/class/net").join(name).join("statistics").join(counter);
+    let path = Path::new("/sys/class/net")
+        .join(name)
+        .join("statistics")
+        .join(counter);
     std::fs::read_to_string(path)
         .ok()
         .and_then(|s| s.trim().parse().ok())

@@ -24,11 +24,23 @@ struct ParsedUrl {
 
 fn parse_url(url: &str) -> Result<ParsedUrl> {
     let rest = url.strip_prefix("http://").ok_or_else(|| {
-        NetworkError::Config(format!("connectivity check URL '{url}' must be plain http://"))
+        NetworkError::Config(format!(
+            "connectivity check URL '{url}' must be plain http://"
+        ))
     })?;
-    let (authority, path) = rest.split_once('/').map(|(a, p)| (a, format!("/{p}"))).unwrap_or((rest, "/".to_string()));
-    let (host, port) = authority.split_once(':').map(|(h, p)| (h, p.parse().unwrap_or(80))).unwrap_or((authority, 80));
-    Ok(ParsedUrl { host: host.to_string(), port, path })
+    let (authority, path) = rest
+        .split_once('/')
+        .map(|(a, p)| (a, format!("/{p}")))
+        .unwrap_or((rest, "/".to_string()));
+    let (host, port) = authority
+        .split_once(':')
+        .map(|(h, p)| (h, p.parse().unwrap_or(80)))
+        .unwrap_or((authority, 80));
+    Ok(ParsedUrl {
+        host: host.to_string(),
+        port,
+        path,
+    })
 }
 
 pub fn check(url: &str, timeout: Duration) -> Result<ConnectivityState> {
@@ -42,8 +54,9 @@ pub fn check(url: &str, timeout: Duration) -> Result<ConnectivityState> {
         .ok()
         .and_then(|mut a| a.next())
         .ok_or_else(|| NetworkError::Dns(format!("could not resolve {}", parsed.host)))
-        .and_then(|sock_addr| TcpStream::connect_timeout(&sock_addr, timeout).map_err(NetworkError::from))
-    {
+        .and_then(|sock_addr| {
+            TcpStream::connect_timeout(&sock_addr, timeout).map_err(NetworkError::from)
+        }) {
         Ok(s) => s,
         Err(_) => return Ok(ConnectivityState::None),
     };
@@ -68,10 +81,20 @@ pub fn check(url: &str, timeout: Duration) -> Result<ConnectivityState> {
         return Ok(ConnectivityState::None);
     };
     // "HTTP/1.1 204 No Content"
-    let Some(status) = status_line.split_whitespace().nth(1).and_then(|s| s.parse::<u16>().ok()) else {
+    let Some(status) = status_line
+        .split_whitespace()
+        .nth(1)
+        .and_then(|s| s.parse::<u16>().ok())
+    else {
         return Ok(ConnectivityState::None);
     };
-    let has_location = text.lines().any(|l| l.to_ascii_lowercase().starts_with("location:"));
+    let has_location = text
+        .lines()
+        .any(|l| l.to_ascii_lowercase().starts_with("location:"));
 
-    Ok(captive_portal::classify(status, EXPECTED_STATUS, has_location))
+    Ok(captive_portal::classify(
+        status,
+        EXPECTED_STATUS,
+        has_location,
+    ))
 }

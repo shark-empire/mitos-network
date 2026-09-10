@@ -14,7 +14,9 @@ pub fn validate_interface_name(name: &str) -> Result<()> {
         )));
     }
     if name.contains('/') || name.contains(char::is_whitespace) || name == "." || name == ".." {
-        return Err(NetworkError::Parse(format!("interface name '{name}' contains invalid characters")));
+        return Err(NetworkError::Parse(format!(
+            "interface name '{name}' contains invalid characters"
+        )));
     }
     Ok(())
 }
@@ -26,7 +28,9 @@ pub fn validate_ssid(ssid: &str) -> Result<()> {
         return Err(NetworkError::Parse("SSID must be 1-32 bytes".into()));
     }
     if ssid.contains('\0') || ssid.contains('\n') || ssid.contains('"') {
-        return Err(NetworkError::Parse("SSID contains invalid characters".into()));
+        return Err(NetworkError::Parse(
+            "SSID contains invalid characters".into(),
+        ));
     }
     Ok(())
 }
@@ -35,7 +39,9 @@ pub fn validate_ssid(ssid: &str) -> Result<()> {
 /// 64-hex-digit PSK is also technically valid but not handled here).
 pub fn validate_wpa_passphrase(pass: &str) -> Result<()> {
     if pass.len() < 8 || pass.len() > 63 {
-        return Err(NetworkError::Parse("WPA passphrase must be 8-63 characters".into()));
+        return Err(NetworkError::Parse(
+            "WPA passphrase must be 8-63 characters".into(),
+        ));
     }
     if !pass.is_ascii() {
         return Err(NetworkError::Parse("WPA passphrase must be ASCII".into()));
@@ -48,9 +54,14 @@ pub fn validate_wpa_passphrase(pass: &str) -> Result<()> {
 /// zone names, profile ids).
 pub fn validate_identifier(id: &str) -> Result<()> {
     if id.is_empty() || id.len() > 64 {
-        return Err(NetworkError::Parse(format!("identifier '{id}' must be 1-64 characters")));
+        return Err(NetworkError::Parse(format!(
+            "identifier '{id}' must be 1-64 characters"
+        )));
     }
-    if !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.') {
+    if !id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    {
         return Err(NetworkError::Parse(format!(
             "identifier '{id}' may only contain letters, digits, '-', '_', '.'"
         )));

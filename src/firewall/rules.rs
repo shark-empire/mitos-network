@@ -39,7 +39,10 @@ pub struct PortSpec {
 
 impl PortSpec {
     pub fn single(port: u16) -> Self {
-        PortSpec { start: port, end: None }
+        PortSpec {
+            start: port,
+            end: None,
+        }
     }
 
     pub fn nft_expr(&self) -> String {
@@ -68,7 +71,12 @@ pub struct Rule {
 impl Rule {
     /// Allow inbound TCP or UDP to `port` within `zone` -- the common
     /// "let this app receive connections" request.
-    pub fn allow_inbound_port(id: impl Into<String>, zone: impl Into<String>, protocol: Protocol, port: u16) -> Self {
+    pub fn allow_inbound_port(
+        id: impl Into<String>,
+        zone: impl Into<String>,
+        protocol: Protocol,
+        port: u16,
+    ) -> Self {
         Rule {
             id: id.into(),
             zone: zone.into(),

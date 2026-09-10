@@ -8,7 +8,9 @@ use std::io::Cursor;
 
 #[test]
 fn request_round_trips_through_the_wire_format() {
-    let req = Request::ActivateConnection { id: "home-wifi".to_string() };
+    let req = Request::ActivateConnection {
+        id: "home-wifi".to_string(),
+    };
     let mut buf = Vec::new();
     write_message(&mut buf, &req).unwrap();
 
@@ -24,7 +26,11 @@ fn request_round_trips_through_the_wire_format() {
 fn multiple_messages_can_be_framed_back_to_back() {
     let mut buf = Vec::new();
     write_message(&mut buf, &ServerMessage::Response(Response::Ok)).unwrap();
-    write_message(&mut buf, &ServerMessage::Response(Response::Error("boom".to_string()))).unwrap();
+    write_message(
+        &mut buf,
+        &ServerMessage::Response(Response::Error("boom".to_string())),
+    )
+    .unwrap();
 
     let mut cursor = Cursor::new(buf);
     let first: ServerMessage = read_message(&mut cursor).unwrap();

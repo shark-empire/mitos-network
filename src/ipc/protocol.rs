@@ -28,7 +28,9 @@ pub fn read_message<T: DeserializeOwned>(stream: &mut impl Read) -> Result<T> {
     stream.read_exact(&mut len_buf)?;
     let len = u32::from_le_bytes(len_buf);
     if len > MAX_MESSAGE_LEN {
-        return Err(NetworkError::Other(format!("incoming IPC message too large ({len} bytes)")));
+        return Err(NetworkError::Other(format!(
+            "incoming IPC message too large ({len} bytes)"
+        )));
     }
     let mut buf = vec![0u8; len as usize];
     stream.read_exact(&mut buf)?;

@@ -75,7 +75,9 @@ fn print_response(resp: &Response) {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let Some(command) = args.first().map(String::as_str) else { usage() };
+    let Some(command) = args.first().map(String::as_str) else {
+        usage()
+    };
 
     let req = match command {
         "status" => Request::GetState,
@@ -99,28 +101,54 @@ fn main() {
         }
         "device" => match args.get(1).map(String::as_str) {
             Some("list") => Request::ListDevices,
-            Some("show") => Request::GetDevice { name: args.get(2).cloned().unwrap_or_else(|| usage()) },
+            Some("show") => Request::GetDevice {
+                name: args.get(2).cloned().unwrap_or_else(|| usage()),
+            },
             _ => usage(),
         },
         "connection" => match args.get(1).map(String::as_str) {
             Some("list") => Request::ListConnections,
-            Some("show") => Request::GetConnection { id: arg_or_usage(&args, 2) },
-            Some("up") => Request::ActivateConnection { id: arg_or_usage(&args, 2) },
-            Some("down") => Request::DeactivateConnection { id: arg_or_usage(&args, 2) },
-            Some("delete") => Request::DeleteConnection { id: arg_or_usage(&args, 2) },
+            Some("show") => Request::GetConnection {
+                id: arg_or_usage(&args, 2),
+            },
+            Some("up") => Request::ActivateConnection {
+                id: arg_or_usage(&args, 2),
+            },
+            Some("down") => Request::DeactivateConnection {
+                id: arg_or_usage(&args, 2),
+            },
+            Some("delete") => Request::DeleteConnection {
+                id: arg_or_usage(&args, 2),
+            },
             _ => usage(),
         },
         "wifi" => match args.get(1).map(String::as_str) {
-            Some("scan") => Request::ScanWifi { device: arg_or_usage(&args, 2) },
-            Some("list") => Request::ListWifiNetworks { device: arg_or_usage(&args, 2) },
+            Some("scan") => Request::ScanWifi {
+                device: arg_or_usage(&args, 2),
+            },
+            Some("list") => Request::ListWifiNetworks {
+                device: arg_or_usage(&args, 2),
+            },
             Some("connect") => {
                 let device = arg_or_usage(&args, 2);
                 let ssid = arg_or_usage(&args, 3);
                 let passphrase = args.get(4).cloned();
-                let security = if passphrase.is_some() { SecurityType::Wpa2Psk } else { SecurityType::Open };
-                Request::ConnectWifi { device, ssid, security, passphrase }
+                let security = if passphrase.is_some() {
+                    SecurityType::Wpa2Psk
+                } else {
+                    SecurityType::Open
+                };
+                Request::ConnectWifi {
+                    device,
+                    ssid,
+                    security,
+                    passphrase,
+                }
             }
-            Some("forget") => Request::ForgetWifi { device: arg_or_usage(&args, 2), ssid: arg_or_usage(&args, 3) },
+            Some("forget") => Request::ForgetWifi {
+                device: arg_or_usage(&args, 2),
+                ssid: arg_or_usage(&args, 3),
+            },
             _ => usage(),
         },
         "hotspot" => match args.get(1).map(String::as_str) {
@@ -130,11 +158,16 @@ fn main() {
                 passphrase: args.get(4).cloned(),
                 uplink: args.get(5).cloned(),
             },
-            Some("stop") => Request::StopHotspot { device: arg_or_usage(&args, 2) },
+            Some("stop") => Request::StopHotspot {
+                device: arg_or_usage(&args, 2),
+            },
             _ => usage(),
         },
         "firewall" => match args.get(1).map(String::as_str) {
-            Some("zone") => Request::SetFirewallZone { interface: arg_or_usage(&args, 2), zone: arg_or_usage(&args, 3) },
+            Some("zone") => Request::SetFirewallZone {
+                interface: arg_or_usage(&args, 2),
+                zone: arg_or_usage(&args, 3),
+            },
             _ => usage(),
         },
         _ => usage(),

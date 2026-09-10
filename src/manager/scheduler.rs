@@ -11,7 +11,12 @@ pub struct SchedulerHandle {
     _threads: Vec<std::thread::JoinHandle<()>>,
 }
 
-fn spawn_tick(tx: Sender<Command>, interval: Duration, kind: TickKind, name: &str) -> std::thread::JoinHandle<()> {
+fn spawn_tick(
+    tx: Sender<Command>,
+    interval: Duration,
+    kind: TickKind,
+    name: &str,
+) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new()
         .name(name.to_string())
         .spawn(move || loop {
@@ -23,12 +28,36 @@ fn spawn_tick(tx: Sender<Command>, interval: Duration, kind: TickKind, name: &st
         .expect("failed to spawn scheduler thread")
 }
 
-pub fn start(tx: Sender<Command>, connectivity_interval: Duration, wifi_scan_interval: Duration) -> SchedulerHandle {
+pub fn start(
+    tx: Sender<Command>,
+    connectivity_interval: Duration,
+    wifi_scan_interval: Duration,
+) -> SchedulerHandle {
     let threads = vec![
-        spawn_tick(tx.clone(), connectivity_interval, TickKind::Connectivity, "mitos-net-sched-conn"),
-        spawn_tick(tx.clone(), wifi_scan_interval, TickKind::WifiScan, "mitos-net-sched-wifi"),
-        spawn_tick(tx.clone(), Duration::from_secs(30), TickKind::LeaseCheck, "mitos-net-sched-lease"),
-        spawn_tick(tx, Duration::from_secs(5), TickKind::DeviceRefresh, "mitos-net-sched-refresh"),
+        spawn_tick(
+            tx.clone(),
+            connectivity_interval,
+            TickKind::Connectivity,
+            "mitos-net-sched-conn",
+        ),
+        spawn_tick(
+            tx.clone(),
+            wifi_scan_interval,
+            TickKind::WifiScan,
+            "mitos-net-sched-wifi",
+        ),
+        spawn_tick(
+            tx.clone(),
+            Duration::from_secs(30),
+            TickKind::LeaseCheck,
+            "mitos-net-sched-lease",
+        ),
+        spawn_tick(
+            tx,
+            Duration::from_secs(5),
+            TickKind::DeviceRefresh,
+            "mitos-net-sched-refresh",
+        ),
     ];
     SchedulerHandle { _threads: threads }
 }

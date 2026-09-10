@@ -13,7 +13,9 @@ pub struct Client {
 impl Client {
     pub fn connect(socket_path: &str) -> Result<Self> {
         let stream = UnixStream::connect(socket_path).map_err(|e| {
-            NetworkError::Other(format!("could not connect to mitos-network at {socket_path}: {e} (is the daemon running?)"))
+            NetworkError::Other(format!(
+                "could not connect to mitos-network at {socket_path}: {e} (is the daemon running?)"
+            ))
         })?;
         Ok(Client { stream })
     }

@@ -12,7 +12,9 @@ pub struct RateSampler {
 
 impl Default for RateSampler {
     fn default() -> Self {
-        RateSampler { last: HashMap::new() }
+        RateSampler {
+            last: HashMap::new(),
+        }
     }
 }
 
@@ -37,7 +39,10 @@ impl RateSampler {
             Some((prev_time, prev_stats)) => {
                 let elapsed = now.duration_since(*prev_time).as_secs_f64().max(0.001);
                 let d = statistics::delta(prev_stats, &current);
-                Rates { rx_bytes_per_sec: d.rx_bytes as f64 / elapsed, tx_bytes_per_sec: d.tx_bytes as f64 / elapsed }
+                Rates {
+                    rx_bytes_per_sec: d.rx_bytes as f64 / elapsed,
+                    tx_bytes_per_sec: d.tx_bytes as f64 / elapsed,
+                }
             }
             None => Rates::default(),
         };
@@ -51,5 +56,7 @@ impl RateSampler {
 /// long-running daemon's lifetime.
 pub fn prune_stale(sampler: &mut RateSampler, max_age: Duration) {
     let now = Instant::now();
-    sampler.last.retain(|_, (t, _)| now.duration_since(*t) < max_age);
+    sampler
+        .last
+        .retain(|_, (t, _)| now.duration_since(*t) < max_age);
 }

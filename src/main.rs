@@ -20,8 +20,14 @@ fn install_signal_handlers() {
     // store, which is on the short list of operations POSIX guarantees
     // are safe to do from a signal handler.
     unsafe {
-        libc::signal(libc::SIGTERM, handle_termination_signal as libc::sighandler_t);
-        libc::signal(libc::SIGINT, handle_termination_signal as libc::sighandler_t);
+        libc::signal(
+            libc::SIGTERM,
+            handle_termination_signal as libc::sighandler_t,
+        );
+        libc::signal(
+            libc::SIGINT,
+            handle_termination_signal as libc::sighandler_t,
+        );
     }
 }
 
@@ -62,7 +68,10 @@ fn main() {
     let cfg = match config::load(&config_dir) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("failed to load configuration from {}: {e}", config_dir.display());
+            eprintln!(
+                "failed to load configuration from {}: {e}",
+                config_dir.display()
+            );
             std::process::exit(1);
         }
     };
@@ -70,7 +79,8 @@ fn main() {
     install_signal_handlers();
 
     let socket_path = cfg.general.socket_path.clone();
-    let connectivity_interval = Duration::from_secs(cfg.general.connectivity_check_interval_secs.max(5));
+    let connectivity_interval =
+        Duration::from_secs(cfg.general.connectivity_check_interval_secs.max(5));
     let wifi_scan_interval = Duration::from_secs(cfg.wireless.scan_interval_secs.max(10));
 
     let manager = match NetworkManager::new(cfg) {
@@ -118,7 +128,8 @@ fn main() {
 
     // Scheduler: periodic connectivity checks, Wi-Fi scans, DHCP
     // renewal checks, and a fallback device-state poll.
-    let _scheduler = manager::scheduler::start(tx.clone(), connectivity_interval, wifi_scan_interval);
+    let _scheduler =
+        manager::scheduler::start(tx.clone(), connectivity_interval, wifi_scan_interval);
 
     // Watches the signal-handler flag and asks the manager to shut down
     // cleanly, rather than doing anything non-signal-safe in the

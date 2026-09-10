@@ -45,7 +45,10 @@ pub struct NeighborSummary {
 
 fn summarize_route(r: &Route) -> RouteSummary {
     RouteSummary {
-        destination: r.destination.map(|(ip, len)| format!("{ip}/{len}")).unwrap_or_else(|| "default".to_string()),
+        destination: r
+            .destination
+            .map(|(ip, len)| format!("{ip}/{len}"))
+            .unwrap_or_else(|| "default".to_string()),
         gateway: r.gateway.map(|g| g.to_string()),
         interface_index: r.oif_index,
         metric: r.metric,
@@ -57,21 +60,43 @@ fn summarize_neighbor(n: &Neighbor) -> NeighborSummary {
         ip: n.ip.to_string(),
         mac: n.mac.map(crate::device::mac::format),
         interface_index: n.ifindex,
-        reachable: matches!(n.state, crate::ip::neighbor::NeighborState::Reachable | crate::ip::neighbor::NeighborState::Permanent),
+        reachable: matches!(
+            n.state,
+            crate::ip::neighbor::NeighborState::Reachable
+                | crate::ip::neighbor::NeighborState::Permanent
+        ),
     }
 }
 
-pub fn collect(devices: Vec<crate::device::NetworkDevice>, connectivity: ConnectivityState) -> Result<DiagnosticReport> {
-    let routes_v4 = crate::ip::route::list(Family::V4)?.iter().map(summarize_route).collect();
-    let routes_v6 = crate::ip::route::list(Family::V6)?.iter().map(summarize_route).collect();
-    let ResolvConf { nameservers, search } = crate::dns::resolver::read_current().unwrap_or_default();
-    let neighbors = crate::ip::neighbor::list(None)?.iter().map(summarize_neighbor).collect();
+pub fn collect(
+    devices: Vec<crate::device::NetworkDevice>,
+    connectivity: ConnectivityState,
+) -> Result<DiagnosticReport> {
+    let routes_v4 = crate::ip::route::list(Family::V4)?
+        .iter()
+        .map(summarize_route)
+        .collect();
+    let routes_v6 = crate::ip::route::list(Family::V6)?
+        .iter()
+        .map(summarize_route)
+        .collect();
+    let ResolvConf {
+        nameservers,
+        search,
+    } = crate::dns::resolver::read_current().unwrap_or_default();
+    let neighbors = crate::ip::neighbor::list(None)?
+        .iter()
+        .map(summarize_neighbor)
+        .collect();
 
     Ok(DiagnosticReport {
         devices,
         routes_v4,
         routes_v6,
-        dns: DnsSummary { nameservers: nameservers.iter().map(|a| a.to_string()).collect(), search },
+        dns: DnsSummary {
+            nameservers: nameservers.iter().map(|a| a.to_string()).collect(),
+            search,
+        },
         neighbors,
         connectivity,
     })

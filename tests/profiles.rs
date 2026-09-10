@@ -1,11 +1,12 @@
-use mitos_network::connection::profile::ConnectionProfile;
 use mitos_network::connection::autoconnect;
+use mitos_network::connection::profile::ConnectionProfile;
 use mitos_network::device::{DeviceState, DeviceType, NetworkDevice};
 use mitos_network::persistence::profiles;
 use mitos_network::wifi::SecurityType;
 
 fn temp_dir(name: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("mitos-network-test-{name}-{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("mitos-network-test-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     dir
 }
@@ -60,7 +61,10 @@ fn autoconnect_prefers_pinned_interface() {
 
     let candidates = vec![generic, pinned];
     let chosen = autoconnect::select(&device, &candidates).expect("a profile matches");
-    assert_eq!(chosen.id, "pinned", "an interface-pinned profile should win even over a higher-priority generic one");
+    assert_eq!(
+        chosen.id, "pinned",
+        "an interface-pinned profile should win even over a higher-priority generic one"
+    );
 }
 
 #[test]

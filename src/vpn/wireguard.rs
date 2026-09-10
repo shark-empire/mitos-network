@@ -42,8 +42,8 @@ fn default_keepalive() -> u16 {
 }
 
 pub fn connect(config: &str, secrets: &dyn SecretsBackend, profile_id: &str) -> Result<VpnSession> {
-    let cfg: WireGuardConfig =
-        toml::from_str(config).map_err(|e| NetworkError::Vpn(format!("invalid WireGuard config: {e}")))?;
+    let cfg: WireGuardConfig = toml::from_str(config)
+        .map_err(|e| NetworkError::Vpn(format!("invalid WireGuard config: {e}")))?;
     crate::security::validation::validate_interface_name(&cfg.interface)?;
 
     let private_key = secrets
@@ -64,7 +64,12 @@ pub fn connect(config: &str, secrets: &dyn SecretsBackend, profile_id: &str) -> 
 
     crate::device::link::bring_up(iface.index)?;
 
-    for cidr in cfg.peer_allowed_ips.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+    for cidr in cfg
+        .peer_allowed_ips
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         if let Ok((dst, len)) = crate::ip::address::parse_cidr(cidr) {
             let _ = crate::ip::route::add(&crate::ip::route::Route {
                 destination: Some((dst, len)),
@@ -76,7 +81,10 @@ pub fn connect(config: &str, secrets: &dyn SecretsBackend, profile_id: &str) -> 
         }
     }
 
-    Ok(VpnSession { interface_name: cfg.interface, kind: VpnKind::WireGuard })
+    Ok(VpnSession {
+        interface_name: cfg.interface,
+        kind: VpnKind::WireGuard,
+    })
 }
 
 fn set_crypto_params(cfg: &WireGuardConfig, private_key: &str) -> Result<()> {
@@ -85,7 +93,11 @@ fn set_crypto_params(cfg: &WireGuardConfig, private_key: &str) -> Result<()> {
     // then remove it immediately.
     let key_path = std::env::temp_dir().join(format!("mitos-wg-{}.key", std::process::id()));
     {
-        let mut f = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(&key_path)?;
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&key_path)?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -95,7 +107,10 @@ fn set_crypto_params(cfg: &WireGuardConfig, private_key: &str) -> Result<()> {
     }
 
     let mut cmd = Command::new("wg");
-    cmd.arg("set").arg(&cfg.interface).arg("private-key").arg(&key_path);
+    cmd.arg("set")
+        .arg(&cfg.interface)
+        .arg("private-key")
+        .arg(&key_path);
     if let Some(port) = cfg.listen_port {
         cmd.arg("listen-port").arg(port.to_string());
     }

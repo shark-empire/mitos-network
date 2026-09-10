@@ -8,7 +8,9 @@ use std::net::IpAddr;
 /// on the box fail five minutes later.
 pub fn validate(cfg: &NetworkConfig) -> Result<()> {
     if cfg.general.socket_path.is_empty() {
-        return Err(NetworkError::Config("general.socket-path must not be empty".into()));
+        return Err(NetworkError::Config(
+            "general.socket-path must not be empty".into(),
+        ));
     }
 
     for server in &cfg.dns.servers {
@@ -19,7 +21,9 @@ pub fn validate(cfg: &NetworkConfig) -> Result<()> {
 
     for (name, iface) in &cfg.interfaces {
         if name.is_empty() {
-            return Err(NetworkError::Config("interface name must not be empty".into()));
+            return Err(NetworkError::Config(
+                "interface name must not be empty".into(),
+            ));
         }
         if iface.method == super::AddressMethod::Manual && iface.addresses.is_empty() {
             return Err(NetworkError::Config(format!(

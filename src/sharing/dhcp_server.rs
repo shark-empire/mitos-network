@@ -39,7 +39,8 @@ impl LeaseTable {
         if end < start {
             return None; // misconfigured pool; caller validated ranges before start()
         }
-        let taken: std::collections::HashSet<u32> = self.by_mac.values().map(|a| u32::from(*a)).collect();
+        let taken: std::collections::HashSet<u32> =
+            self.by_mac.values().map(|a| u32::from(*a)).collect();
         for _ in 0..=(end - start) {
             let candidate = start + (self.next_candidate - start) % (end - start + 1);
             self.next_candidate = candidate + 1;
@@ -77,7 +78,10 @@ pub fn start(cfg: DhcpServerConfig) -> Result<ServerHandle> {
         .name(format!("mitos-dhcpd-{}", cfg.interface))
         .spawn(move || run(sock, cfg, stop_clone))?;
 
-    Ok(ServerHandle { stop, thread: Some(thread) })
+    Ok(ServerHandle {
+        stop,
+        thread: Some(thread),
+    })
 }
 
 fn bound_server_socket(ifname: &str) -> Result<UdpSocket> {
@@ -89,26 +93,53 @@ fn bound_server_socket(ifname: &str) -> Result<UdpSocket> {
             return Err(NetworkError::Io(std::io::Error::last_os_error()));
         }
         let one: libc::c_int = 1;
-        libc::setsockopt(fd, libc::SOL_SOCKET, libc::SO_BROADCAST, &one as *const _ as *const _, 4);
-        libc::setsockopt(fd, libc::SOL_SOCKET, libc::SO_REUSEADDR, &one as *const _ as *const _, 4);
+        libc::setsockopt(
+            fd,
+            libc::SOL_SOCKET,
+            libc::SO_BROADCAST,
+            &one as *const _ as *const _,
+            4,
+        );
+        libc::setsockopt(
+            fd,
+            libc::SOL_SOCKET,
+            libc::SO_REUSEADDR,
+            &one as *const _ as *const _,
+            4,
+        );
         let cname = std::ffi::CString::new(ifname).unwrap();
-        libc::setsockopt(fd, libc::SOL_SOCKET, libc::SO_BINDTODEVICE, cname.as_ptr() as *const _, ifname.len() as u32);
+        libc::setsockopt(
+            fd,
+            libc::SOL_SOCKET,
+            libc::SO_BINDTODEVICE,
+            cname.as_ptr() as *const _,
+            ifname.len() as u32,
+        );
         let mut addr: libc::sockaddr_in = std::mem::zeroed();
         addr.sin_family = libc::AF_INET as libc::sa_family_t;
         addr.sin_port = dhcp4::SERVER_PORT.to_be();
         addr.sin_addr.s_addr = libc::INADDR_ANY.to_be();
-        let rc = libc::bind(fd, &addr as *const _ as *const libc::sockaddr, std::mem::size_of::<libc::sockaddr_in>() as u32);
+        let rc = libc::bind(
+            fd,
+            &addr as *const _ as *const libc::sockaddr,
+            std::mem::size_of::<libc::sockaddr_in>() as u32,
+        );
         if rc < 0 {
             let e = std::io::Error::last_os_error();
             libc::close(fd);
-            return Err(NetworkError::Dhcp(format!("bind udp/67 on {ifname} failed: {e}")));
+            return Err(NetworkError::Dhcp(format!(
+                "bind udp/67 on {ifname} failed: {e}"
+            )));
         }
         Ok(<UdpSocket as std::os::unix::io::FromRawFd>::from_raw_fd(fd))
     }
 }
 
 fn run(sock: UdpSocket, cfg: DhcpServerConfig, stop: Arc<Mutex<bool>>) {
-    let mut leases = LeaseTable { by_mac: HashMap::new(), next_candidate: u32::from(cfg.pool_start) };
+    let mut leases = LeaseTable {
+        by_mac: HashMap::new(),
+        next_candidate: u32::from(cfg.pool_start),
+    };
     let mut buf = [0u8; 1500];
     loop {
         if *stop.lock().unwrap() {
@@ -122,9 +153,13 @@ fn run(sock: UdpSocket, cfg: DhcpServerConfig, stop: Arc<Mutex<bool>>) {
                 continue;
             }
         };
-        let Some(pkt) = dhcp4::parse(&buf[..n]) else { continue };
+        let Some(pkt) = dhcp4::parse(&buf[..n]) else {
+            continue;
+        };
         let reply = match pkt.message_type() {
-            Some(MSG_DISCOVER) => leases.allocate(pkt.chaddr, &cfg).map(|addr| build_reply(&pkt, addr, &cfg, dhcp4::MSG_OFFER)),
+            Some(MSG_DISCOVER) => leases
+                .allocate(pkt.chaddr, &cfg)
+                .map(|addr| build_reply(&pkt, addr, &cfg, dhcp4::MSG_OFFER)),
             Some(MSG_REQUEST) => {
                 let requested = pkt
                     .get_option(dhcp4::OPT_REQUESTED_IP)
@@ -146,15 +181,28 @@ fn run(sock: UdpSocket, cfg: DhcpServerConfig, stop: Arc<Mutex<bool>>) {
     }
 }
 
-fn build_reply(request: &dhcp4::Packet, yiaddr: Ipv4Addr, cfg: &DhcpServerConfig, msg_type: u8) -> Vec<u8> {
+fn build_reply(
+    request: &dhcp4::Packet,
+    yiaddr: Ipv4Addr,
+    cfg: &DhcpServerConfig,
+    msg_type: u8,
+) -> Vec<u8> {
     let mut options = vec![
         (dhcp4::OPT_MSG_TYPE, vec![msg_type]),
         (dhcp4::OPT_SERVER_ID, cfg.server_ip.octets().to_vec()),
     ];
     if msg_type != dhcp4::MSG_NAK {
-        options.push((dhcp4::OPT_SUBNET_MASK, crate::ip::ipv4::subnet_mask(cfg.prefixlen).octets().to_vec()));
+        options.push((
+            dhcp4::OPT_SUBNET_MASK,
+            crate::ip::ipv4::subnet_mask(cfg.prefixlen)
+                .octets()
+                .to_vec(),
+        ));
         options.push((dhcp4::OPT_ROUTER, cfg.server_ip.octets().to_vec()));
-        options.push((dhcp4::OPT_LEASE_TIME, cfg.lease_time_secs.to_be_bytes().to_vec()));
+        options.push((
+            dhcp4::OPT_LEASE_TIME,
+            cfg.lease_time_secs.to_be_bytes().to_vec(),
+        ));
         if !cfg.dns_servers.is_empty() {
             let dns_bytes = cfg.dns_servers.iter().flat_map(|a| a.octets()).collect();
             options.push((dhcp4::OPT_DNS, dns_bytes));
@@ -166,7 +214,11 @@ fn build_reply(request: &dhcp4::Packet, yiaddr: Ipv4Addr, cfg: &DhcpServerConfig
         secs: 0,
         flags: request.flags,
         ciaddr: Ipv4Addr::UNSPECIFIED,
-        yiaddr: if msg_type == dhcp4::MSG_NAK { Ipv4Addr::UNSPECIFIED } else { yiaddr },
+        yiaddr: if msg_type == dhcp4::MSG_NAK {
+            Ipv4Addr::UNSPECIFIED
+        } else {
+            yiaddr
+        },
         siaddr: cfg.server_ip,
         chaddr: request.chaddr,
         options,

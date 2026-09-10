@@ -14,8 +14,15 @@ pub struct DnsServerRegistry {
 }
 
 impl DnsServerRegistry {
-    pub fn set(&mut self, connection_id: &str, servers: Vec<IpAddr>, search: Vec<String>, priority: i32) {
-        self.per_connection.insert(connection_id.to_string(), (servers, search, priority));
+    pub fn set(
+        &mut self,
+        connection_id: &str,
+        servers: Vec<IpAddr>,
+        search: Vec<String>,
+        priority: i32,
+    ) {
+        self.per_connection
+            .insert(connection_id.to_string(), (servers, search, priority));
     }
 
     pub fn clear(&mut self, connection_id: &str) {
@@ -26,7 +33,8 @@ impl DnsServerRegistry {
     /// first, de-duplicated -- what actually gets written to
     /// `/etc/resolv.conf` by `dns::resolver::apply_static`.
     pub fn merged(&self) -> (Vec<IpAddr>, Vec<String>) {
-        let mut entries: Vec<&(Vec<IpAddr>, Vec<String>, i32)> = self.per_connection.values().collect();
+        let mut entries: Vec<&(Vec<IpAddr>, Vec<String>, i32)> =
+            self.per_connection.values().collect();
         entries.sort_by_key(|(_, _, prio)| std::cmp::Reverse(*prio));
 
         let mut servers = Vec::new();

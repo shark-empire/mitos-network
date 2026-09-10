@@ -48,11 +48,15 @@ pub struct Packet {
 
 impl Packet {
     pub fn get_option(&self, code: u8) -> Option<&[u8]> {
-        self.options.iter().find(|(c, _)| *c == code).map(|(_, v)| v.as_slice())
+        self.options
+            .iter()
+            .find(|(c, _)| *c == code)
+            .map(|(_, v)| v.as_slice())
     }
 
     pub fn message_type(&self) -> Option<u8> {
-        self.get_option(OPT_MSG_TYPE).and_then(|v| v.first().copied())
+        self.get_option(OPT_MSG_TYPE)
+            .and_then(|v| v.first().copied())
     }
 }
 
@@ -76,7 +80,8 @@ pub fn build_discover(xid: u32, mac: [u8; 6], hostname: Option<&str>) -> Vec<u8>
     let mut pkt = base_request(xid, mac, 0);
     pkt.options.push((OPT_MSG_TYPE, vec![MSG_DISCOVER]));
     pkt.options.push((OPT_CLIENT_ID, client_id(mac)));
-    pkt.options.push((OPT_PARAM_REQUEST_LIST, DEFAULT_PARAM_REQUEST_LIST.to_vec()));
+    pkt.options
+        .push((OPT_PARAM_REQUEST_LIST, DEFAULT_PARAM_REQUEST_LIST.to_vec()));
     if let Some(h) = hostname {
         pkt.options.push((OPT_HOSTNAME, h.as_bytes().to_vec()));
     }
@@ -93,9 +98,12 @@ pub fn build_request(
     let mut pkt = base_request(xid, mac, 0);
     pkt.options.push((OPT_MSG_TYPE, vec![MSG_REQUEST]));
     pkt.options.push((OPT_CLIENT_ID, client_id(mac)));
-    pkt.options.push((OPT_REQUESTED_IP, requested_ip.octets().to_vec()));
-    pkt.options.push((OPT_SERVER_ID, server_id.octets().to_vec()));
-    pkt.options.push((OPT_PARAM_REQUEST_LIST, DEFAULT_PARAM_REQUEST_LIST.to_vec()));
+    pkt.options
+        .push((OPT_REQUESTED_IP, requested_ip.octets().to_vec()));
+    pkt.options
+        .push((OPT_SERVER_ID, server_id.octets().to_vec()));
+    pkt.options
+        .push((OPT_PARAM_REQUEST_LIST, DEFAULT_PARAM_REQUEST_LIST.to_vec()));
     if let Some(h) = hostname {
         pkt.options.push((OPT_HOSTNAME, h.as_bytes().to_vec()));
     }
@@ -118,7 +126,8 @@ pub fn build_release(xid: u32, mac: [u8; 6], client_ip: Ipv4Addr, server_id: Ipv
     pkt.ciaddr = client_ip;
     pkt.options.push((OPT_MSG_TYPE, vec![MSG_RELEASE]));
     pkt.options.push((OPT_CLIENT_ID, client_id(mac)));
-    pkt.options.push((OPT_SERVER_ID, server_id.octets().to_vec()));
+    pkt.options
+        .push((OPT_SERVER_ID, server_id.octets().to_vec()));
     serialize(&pkt)
 }
 
@@ -192,7 +201,17 @@ pub fn parse(buf: &[u8]) -> Option<Packet> {
         i += 2 + len;
     }
 
-    Some(Packet { op, xid, secs, flags, ciaddr, yiaddr, siaddr, chaddr, options })
+    Some(Packet {
+        op,
+        xid,
+        secs,
+        flags,
+        ciaddr,
+        yiaddr,
+        siaddr,
+        chaddr,
+        options,
+    })
 }
 
 #[cfg(test)]
@@ -213,10 +232,22 @@ mod tests {
     #[test]
     fn request_carries_requested_ip_and_server_id() {
         let mac = [0, 1, 2, 3, 4, 5];
-        let bytes = build_request(1, mac, Ipv4Addr::new(192, 168, 1, 50), Ipv4Addr::new(192, 168, 1, 1), None);
+        let bytes = build_request(
+            1,
+            mac,
+            Ipv4Addr::new(192, 168, 1, 50),
+            Ipv4Addr::new(192, 168, 1, 1),
+            None,
+        );
         let pkt = parse(&bytes).unwrap();
         assert_eq!(pkt.message_type(), Some(MSG_REQUEST));
-        assert_eq!(pkt.get_option(OPT_REQUESTED_IP), Some([192, 168, 1, 50].as_slice()));
-        assert_eq!(pkt.get_option(OPT_SERVER_ID), Some([192, 168, 1, 1].as_slice()));
+        assert_eq!(
+            pkt.get_option(OPT_REQUESTED_IP),
+            Some([192, 168, 1, 50].as_slice())
+        );
+        assert_eq!(
+            pkt.get_option(OPT_SERVER_ID),
+            Some([192, 168, 1, 1].as_slice())
+        );
     }
 }

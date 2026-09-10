@@ -12,7 +12,11 @@ const HEADER: &str = "# Managed by mitos-network -- changes here will be overwri
 /// push-config, manual `dns.toml`) ultimately funnels through, so
 /// there's exactly one place that decides the on-disk format.
 pub fn apply_static(servers: &[IpAddr], search: &[String]) -> Result<()> {
-    apply_to(Path::new(crate::config::defaults_resolv_conf_path()), servers, search)
+    apply_to(
+        Path::new(crate::config::defaults_resolv_conf_path()),
+        servers,
+        search,
+    )
 }
 
 pub fn apply_to(path: &Path, servers: &[IpAddr], search: &[String]) -> Result<()> {
@@ -42,7 +46,11 @@ pub fn apply_from_config(cfg: &DnsConfig) -> Result<()> {
         DnsMode::None => Ok(()),
         DnsMode::Manual => {
             let servers: Vec<IpAddr> = cfg.servers.iter().filter_map(|s| s.parse().ok()).collect();
-            apply_to(Path::new(&cfg.resolv_conf_path), &servers, &cfg.search_domains)
+            apply_to(
+                Path::new(&cfg.resolv_conf_path),
+                &servers,
+                &cfg.search_domains,
+            )
         }
         DnsMode::Auto => Ok(()), // left for whichever connection activates to populate
     }

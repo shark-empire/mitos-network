@@ -12,7 +12,9 @@ use crate::errors::Result;
 /// both agree a cable is present, since drivers occasionally lag on
 /// updating one or the other after a physical plug/unplug.
 pub fn is_ready(ifname: &str) -> bool {
-    let netlink_carrier = crate::ip::interface::get_by_name(ifname).map(|i| i.has_carrier()).unwrap_or(false);
+    let netlink_carrier = crate::ip::interface::get_by_name(ifname)
+        .map(|i| i.has_carrier())
+        .unwrap_or(false);
     let ethtool_carrier = super::link::has_carrier(ifname).unwrap_or(netlink_carrier);
     netlink_carrier && ethtool_carrier
 }

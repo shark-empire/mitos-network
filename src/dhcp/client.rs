@@ -35,7 +35,8 @@ fn bound_broadcast_socket(ifname: &str) -> Result<UdpSocket> {
             &one as *const _ as *const libc::c_void,
             std::mem::size_of_val(&one) as u32,
         );
-        let cname = std::ffi::CString::new(ifname).map_err(|_| NetworkError::Parse("bad interface name".into()))?;
+        let cname = std::ffi::CString::new(ifname)
+            .map_err(|_| NetworkError::Parse("bad interface name".into()))?;
         libc::setsockopt(
             fd,
             libc::SOL_SOCKET,
@@ -56,7 +57,9 @@ fn bound_broadcast_socket(ifname: &str) -> Result<UdpSocket> {
         if rc < 0 {
             let e = std::io::Error::last_os_error();
             libc::close(fd);
-            return Err(NetworkError::Dhcp(format!("bind to udp/68 on {ifname} failed: {e}")));
+            return Err(NetworkError::Dhcp(format!(
+                "bind to udp/68 on {ifname} failed: {e}"
+            )));
         }
         Ok(<UdpSocket as std::os::unix::io::FromRawFd>::from_raw_fd(fd))
     }
@@ -64,7 +67,9 @@ fn bound_broadcast_socket(ifname: &str) -> Result<UdpSocket> {
 
 fn get_mac(ifname: &str) -> Result<[u8; 6]> {
     let iface = crate::ip::interface::get_by_name(ifname)?;
-    iface.hwaddr.ok_or_else(|| NetworkError::Dhcp(format!("{ifname} has no hardware address")))
+    iface
+        .hwaddr
+        .ok_or_else(|| NetworkError::Dhcp(format!("{ifname} has no hardware address")))
 }
 
 fn random_xid() -> u32 {
@@ -72,7 +77,10 @@ fn random_xid() -> u32 {
     // is exactly the entropy DHCP's collision-avoidance actually needs
     // (uniqueness against other clients on the same segment, not
     // cryptographic unpredictability).
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().subsec_nanos();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .subsec_nanos();
     nanos ^ (std::process::id() << 16)
 }
 
@@ -133,7 +141,9 @@ pub fn acquire(ifname: &str, _ifindex: i32, timeout: Duration) -> Result<Lease> 
                     match pkt.message_type() {
                         Some(MSG_ACK) => break pkt,
                         Some(MSG_NAK) => {
-                            return Err(NetworkError::Dhcp(format!("server {server_id} sent DHCPNAK")))
+                            return Err(NetworkError::Dhcp(format!(
+                                "server {server_id} sent DHCPNAK"
+                            )))
                         }
                         _ => continue,
                     }
@@ -160,7 +170,12 @@ fn lease_from_ack(ack: &dhcp4::Packet, server_id: Ipv4Addr) -> Result<Lease> {
         .map(Ipv4Addr::from);
     let dns_servers = ack
         .get_option(dhcp4::OPT_DNS)
-        .map(|b| b.chunks_exact(4).filter_map(|c| <[u8; 4]>::try_from(c).ok()).map(Ipv4Addr::from).collect())
+        .map(|b| {
+            b.chunks_exact(4)
+                .filter_map(|c| <[u8; 4]>::try_from(c).ok())
+                .map(Ipv4Addr::from)
+                .collect()
+        })
         .unwrap_or_default();
     let domain = ack
         .get_option(dhcp4::OPT_DOMAIN_NAME)
@@ -179,7 +194,10 @@ fn lease_from_ack(ack: &dhcp4::Packet, server_id: Ipv4Addr) -> Result<Lease> {
         domain,
         server_id,
         lease_time_secs,
-        obtained_at_unix: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
+        obtained_at_unix: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
     })
 }
 
@@ -191,7 +209,10 @@ pub fn renew(ifname: &str, lease: &Lease) -> Result<Lease> {
     sock.set_read_timeout(Some(Duration::from_secs(3)))?;
     let xid = random_xid();
     let request = dhcp4::build_renew_request(xid, mac, lease.address);
-    sock.send_to(&request, SocketAddrV4::new(lease.server_id, dhcp4::SERVER_PORT))?;
+    sock.send_to(
+        &request,
+        SocketAddrV4::new(lease.server_id, dhcp4::SERVER_PORT),
+    )?;
 
     let mut buf = [0u8; 1500];
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -208,7 +229,9 @@ pub fn renew(ifname: &str, lease: &Lease) -> Result<Lease> {
             Err(e) => return Err(e.into()),
         }
     }
-    Err(NetworkError::Timeout(format!("no reply renewing lease on {ifname}")))
+    Err(NetworkError::Timeout(format!(
+        "no reply renewing lease on {ifname}"
+    )))
 }
 
 /// Sends DHCPRELEASE for whatever lease is on record for `ifname`, if
@@ -221,7 +244,10 @@ pub fn release(ifname: &str) -> Result<()> {
     let mac = get_mac(ifname)?;
     let sock = bound_broadcast_socket(ifname)?;
     let release = dhcp4::build_release(random_xid(), mac, lease.address, lease.server_id);
-    sock.send_to(&release, SocketAddrV4::new(lease.server_id, dhcp4::SERVER_PORT))?;
+    sock.send_to(
+        &release,
+        SocketAddrV4::new(lease.server_id, dhcp4::SERVER_PORT),
+    )?;
     crate::persistence::state::clear_lease(ifname)?;
     Ok(())
 }

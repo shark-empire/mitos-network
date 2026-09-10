@@ -25,12 +25,21 @@ impl DnsCache {
 
     pub fn get(&self, name: &str) -> Option<Vec<IpAddr>> {
         let entries = self.entries.lock().unwrap();
-        entries.get(name).filter(|e| e.expires_at > Instant::now()).map(|e| e.addrs.clone())
+        entries
+            .get(name)
+            .filter(|e| e.expires_at > Instant::now())
+            .map(|e| e.addrs.clone())
     }
 
     pub fn insert(&self, name: &str, addrs: Vec<IpAddr>, ttl: Duration) {
         let mut entries = self.entries.lock().unwrap();
-        entries.insert(name.to_string(), Entry { addrs, expires_at: Instant::now() + ttl });
+        entries.insert(
+            name.to_string(),
+            Entry {
+                addrs,
+                expires_at: Instant::now() + ttl,
+            },
+        );
     }
 
     /// Resolves via the system resolver (`std::net::ToSocketAddrs`,

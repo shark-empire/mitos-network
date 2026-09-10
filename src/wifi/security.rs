@@ -31,7 +31,10 @@ impl SecurityType {
     }
 
     pub fn is_enterprise(self) -> bool {
-        matches!(self, SecurityType::WpaEnterprise | SecurityType::Wpa3Enterprise)
+        matches!(
+            self,
+            SecurityType::WpaEnterprise | SecurityType::Wpa3Enterprise
+        )
     }
 
     /// Classifies a scan result's capability flags string, e.g.
@@ -66,8 +69,17 @@ mod tests {
     #[test]
     fn classifies_common_flag_strings() {
         assert_eq!(SecurityType::from_flags("[ESS]"), SecurityType::Open);
-        assert_eq!(SecurityType::from_flags("[WPA2-PSK-CCMP][ESS]"), SecurityType::Wpa2Psk);
-        assert_eq!(SecurityType::from_flags("[SAE-CCMP][ESS]"), SecurityType::Wpa3Sae);
-        assert_eq!(SecurityType::from_flags("[WPA2-EAP-CCMP][ESS]"), SecurityType::WpaEnterprise);
+        assert_eq!(
+            SecurityType::from_flags("[WPA2-PSK-CCMP][ESS]"),
+            SecurityType::Wpa2Psk
+        );
+        assert_eq!(
+            SecurityType::from_flags("[SAE-CCMP][ESS]"),
+            SecurityType::Wpa3Sae
+        );
+        assert_eq!(
+            SecurityType::from_flags("[WPA2-EAP-CCMP][ESS]"),
+            SecurityType::WpaEnterprise
+        );
     }
 }

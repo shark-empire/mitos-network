@@ -26,8 +26,12 @@ pub fn detect(device_type: DeviceType) -> DeviceCapabilities {
             supports_carrier_detect: true,
             is_virtual: false,
         },
-        DeviceType::Bridge | DeviceType::Bond | DeviceType::Vlan | DeviceType::Tunnel
-        | DeviceType::Vpn | DeviceType::Virtual => DeviceCapabilities {
+        DeviceType::Bridge
+        | DeviceType::Bond
+        | DeviceType::Vlan
+        | DeviceType::Tunnel
+        | DeviceType::Vpn
+        | DeviceType::Virtual => DeviceCapabilities {
             can_scan: false,
             can_hotspot: false,
             supports_carrier_detect: false,

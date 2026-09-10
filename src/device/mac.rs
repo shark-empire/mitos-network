@@ -3,7 +3,10 @@
 use crate::errors::{NetworkError, Result};
 
 pub fn format(mac: [u8; 6]) -> String {
-    mac.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(":")
+    mac.iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join(":")
 }
 
 pub fn parse(s: &str) -> Result<[u8; 6]> {

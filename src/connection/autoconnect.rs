@@ -10,7 +10,10 @@ use crate::device::{DeviceType, NetworkDevice};
 /// higher `autoconnect_priority`, then most-recently-used (handled by
 /// the caller passing `candidates` pre-sorted by
 /// `persistence::profiles::recently_used_first`).
-pub fn select<'a>(device: &NetworkDevice, candidates: &'a [ConnectionProfile]) -> Option<&'a ConnectionProfile> {
+pub fn select<'a>(
+    device: &NetworkDevice,
+    candidates: &'a [ConnectionProfile],
+) -> Option<&'a ConnectionProfile> {
     let mut eligible: Vec<&ConnectionProfile> = candidates
         .iter()
         .filter(|p| p.autoconnect && matches(p, device))

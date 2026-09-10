@@ -30,8 +30,9 @@ impl WpaCtrl {
         let _ = std::fs::remove_file(&client_path);
         let sock = UnixDatagram::bind(&client_path)
             .map_err(|e| NetworkError::Wifi(format!("bind control client socket: {e}")))?;
-        sock.connect(&server_path)
-            .map_err(|e| NetworkError::Wifi(format!("connect to wpa_supplicant at {server_path}: {e}")))?;
+        sock.connect(&server_path).map_err(|e| {
+            NetworkError::Wifi(format!("connect to wpa_supplicant at {server_path}: {e}"))
+        })?;
         sock.set_read_timeout(Some(Duration::from_secs(5)))?;
         Ok(WpaCtrl { sock, client_path })
     }
@@ -87,7 +88,10 @@ impl WpaCtrl {
     /// Returns the new network's id.
     pub fn add_network(&self) -> Result<u32> {
         let reply = self.request("ADD_NETWORK")?;
-        reply.trim().parse().map_err(|_| NetworkError::Wifi(format!("unexpected ADD_NETWORK reply: {reply}")))
+        reply
+            .trim()
+            .parse()
+            .map_err(|_| NetworkError::Wifi(format!("unexpected ADD_NETWORK reply: {reply}")))
     }
 
     pub fn set_network_quoted(&self, id: u32, key: &str, value: &str) -> Result<()> {

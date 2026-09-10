@@ -25,22 +25,25 @@ pub fn activate(
 
     match profile.device_type {
         DeviceType::WiFi => {
-            let wifi = profile
-                .wifi
-                .as_ref()
-                .ok_or_else(|| NetworkError::Config(format!("profile '{}' has no [wifi] section", profile.id)))?;
+            let wifi = profile.wifi.as_ref().ok_or_else(|| {
+                NetworkError::Config(format!("profile '{}' has no [wifi] section", profile.id))
+            })?;
             let passphrase = if wifi.has_secret {
                 secrets.get(&profile.id, "psk")?
             } else {
                 None
             };
-            crate::wifi::wifi::connect(&device.name, &wifi.ssid, wifi.security, passphrase.as_deref())?;
+            crate::wifi::wifi::connect(
+                &device.name,
+                &wifi.ssid,
+                wifi.security,
+                passphrase.as_deref(),
+            )?;
         }
         DeviceType::Vpn => {
-            let vpn = profile
-                .vpn
-                .as_ref()
-                .ok_or_else(|| NetworkError::Config(format!("profile '{}' has no [vpn] section", profile.id)))?;
+            let vpn = profile.vpn.as_ref().ok_or_else(|| {
+                NetworkError::Config(format!("profile '{}' has no [vpn] section", profile.id))
+            })?;
             let session = crate::vpn::vpn::connect(vpn.kind, &vpn.config, secrets, &profile.id)?;
             device.state = DeviceState::Activated;
             device.active_connection = Some(profile.id.clone());
@@ -69,11 +72,8 @@ pub fn activate(
     }
 
     if !profile.dns.is_empty() {
-        let servers: Vec<std::net::IpAddr> = profile
-            .dns
-            .iter()
-            .filter_map(|s| s.parse().ok())
-            .collect();
+        let servers: Vec<std::net::IpAddr> =
+            profile.dns.iter().filter_map(|s| s.parse().ok()).collect();
         crate::dns::resolver::apply_static(&servers, &[])?;
     }
 
@@ -98,7 +98,12 @@ fn apply_static(profile: &ConnectionProfile, index: i32) -> Result<()> {
         let gw: std::net::IpAddr = gw
             .parse()
             .map_err(|_| NetworkError::Config(format!("invalid gateway '{gw}'")))?;
-        crate::routing::default_route::apply(index, gw, 100, crate::ip::route::RouteProtocol::Static)?;
+        crate::routing::default_route::apply(
+            index,
+            gw,
+            100,
+            crate::ip::route::RouteProtocol::Static,
+        )?;
     }
     Ok(())
 }
@@ -107,11 +112,23 @@ fn apply_dhcp(_profile: &ConnectionProfile, device: &mut NetworkDevice, index: i
     let lease = crate::dhcp::client::acquire(&device.name, index, DHCP_TIMEOUT)?;
     crate::ip::address::add(index, std::net::IpAddr::V4(lease.address), lease.prefixlen)?;
     if let Some(gw) = lease.gateway {
-        crate::routing::default_route::apply(index, std::net::IpAddr::V4(gw), 100, crate::ip::route::RouteProtocol::Dhcp)?;
+        crate::routing::default_route::apply(
+            index,
+            std::net::IpAddr::V4(gw),
+            100,
+            crate::ip::route::RouteProtocol::Dhcp,
+        )?;
     }
     if !lease.dns_servers.is_empty() {
-        let servers = lease.dns_servers.iter().map(|a| std::net::IpAddr::V4(*a)).collect::<Vec<_>>();
-        crate::dns::resolver::apply_static(&servers, &lease.domain.clone().into_iter().collect::<Vec<_>>())?;
+        let servers = lease
+            .dns_servers
+            .iter()
+            .map(|a| std::net::IpAddr::V4(*a))
+            .collect::<Vec<_>>();
+        crate::dns::resolver::apply_static(
+            &servers,
+            &lease.domain.clone().into_iter().collect::<Vec<_>>(),
+        )?;
     }
     device.ipv4_addresses = vec![format!("{}/{}", lease.address, lease.prefixlen)];
     crate::persistence::state::save_lease(&device.name, &lease)?;

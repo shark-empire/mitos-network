@@ -38,7 +38,9 @@ pub struct FileSecretsBackend {
 
 impl FileSecretsBackend {
     pub fn new(data_dir: &std::path::Path) -> Self {
-        FileSecretsBackend { dir: data_dir.join("secrets") }
+        FileSecretsBackend {
+            dir: data_dir.join("secrets"),
+        }
     }
 
     fn path(&self, owner: &str, key: &str) -> Result<PathBuf> {

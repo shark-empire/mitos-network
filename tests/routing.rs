@@ -6,7 +6,10 @@ fn ethernet_beats_wifi_beats_bluetooth() {
     let eth = metrics::base_metric(DeviceType::Ethernet);
     let wifi = metrics::base_metric(DeviceType::WiFi);
     let bt = metrics::base_metric(DeviceType::Bluetooth);
-    assert!(eth < wifi, "ethernet should have a lower (preferred) metric than wifi");
+    assert!(
+        eth < wifi,
+        "ethernet should have a lower (preferred) metric than wifi"
+    );
     assert!(wifi < bt, "wifi should be preferred over bluetooth");
 }
 

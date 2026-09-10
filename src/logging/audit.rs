@@ -16,7 +16,10 @@ pub struct AuditLog {
 
 impl AuditLog {
     pub fn new(path: PathBuf) -> Self {
-        AuditLog { path, file: Mutex::new(None) }
+        AuditLog {
+            path,
+            file: Mutex::new(None),
+        }
     }
 
     fn ensure_open(&self) -> std::io::Result<()> {
@@ -25,7 +28,10 @@ impl AuditLog {
             if let Some(parent) = self.path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            let f = OpenOptions::new().create(true).append(true).open(&self.path)?;
+            let f = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&self.path)?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -43,7 +49,10 @@ impl AuditLog {
         if self.ensure_open().is_err() {
             return; // audit logging must never crash the daemon
         }
-        let ts = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
         let line = format!("{ts} actor={actor} action={action} detail={detail}\n");
         if let Some(f) = self.file.lock().unwrap().as_mut() {
             let _ = f.write_all(line.as_bytes());

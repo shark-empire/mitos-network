@@ -8,12 +8,23 @@ use mitos_network::ethernet::link::LinkSettings;
 
 #[test]
 fn describes_full_duplex_autonegotiated_link() {
-    let settings = LinkSettings { speed_mbps: Some(1000), full_duplex: true, autoneg: true };
-    assert_eq!(describe(&settings), "1000 Mbps, full duplex (auto-negotiated)");
+    let settings = LinkSettings {
+        speed_mbps: Some(1000),
+        full_duplex: true,
+        autoneg: true,
+    };
+    assert_eq!(
+        describe(&settings),
+        "1000 Mbps, full duplex (auto-negotiated)"
+    );
 }
 
 #[test]
 fn describes_unknown_speed_gracefully() {
-    let settings = LinkSettings { speed_mbps: None, full_duplex: false, autoneg: false };
+    let settings = LinkSettings {
+        speed_mbps: None,
+        full_duplex: false,
+        autoneg: false,
+    };
     assert_eq!(describe(&settings), "unknown speed, half duplex (fixed)");
 }

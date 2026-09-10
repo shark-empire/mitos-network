@@ -84,7 +84,11 @@ fn build(route: &Route, msg_type: u16, extra_flags: u16) -> Result<()> {
 }
 
 pub fn add(route: &Route) -> Result<()> {
-    build(route, netlink::RTM_NEWROUTE, netlink::NLM_F_CREATE | netlink::NLM_F_REPLACE)
+    build(
+        route,
+        netlink::RTM_NEWROUTE,
+        netlink::NLM_F_CREATE | netlink::NLM_F_REPLACE,
+    )
 }
 
 pub fn del(route: &Route) -> Result<()> {
@@ -94,7 +98,12 @@ pub fn del(route: &Route) -> Result<()> {
 /// Convenience for the common "make this device's gateway the default
 /// route" case that `routing::default_route` drives after DHCP/static
 /// activation.
-pub fn set_default(oif_index: i32, gateway: IpAddr, metric: u32, protocol: RouteProtocol) -> Result<()> {
+pub fn set_default(
+    oif_index: i32,
+    gateway: IpAddr,
+    metric: u32,
+    protocol: RouteProtocol,
+) -> Result<()> {
     add(&Route {
         destination: None,
         gateway: Some(gateway),
@@ -114,7 +123,10 @@ pub fn list(family: super::Family) -> Result<Vec<Route>> {
             if r.table != netlink::RT_TABLE_MAIN {
                 continue;
             }
-            let destination = r.dst.and_then(|b| bytes_to_ip(r.family, &b)).map(|ip| (ip, r.dst_len));
+            let destination = r
+                .dst
+                .and_then(|b| bytes_to_ip(r.family, &b))
+                .map(|ip| (ip, r.dst_len));
             let gateway = r.gateway.and_then(|b| bytes_to_ip(r.family, &b));
             out.push(Route {
                 destination,
@@ -197,5 +209,9 @@ pub fn add_to_table(route: &Route, table: u8) -> Result<()> {
     let mut payload = hdr;
     payload.extend(attrs.into_bytes());
     let mut sock = NlSocket::new()?;
-    sock.request(netlink::RTM_NEWROUTE, netlink::NLM_F_CREATE | netlink::NLM_F_REPLACE, &payload)
+    sock.request(
+        netlink::RTM_NEWROUTE,
+        netlink::NLM_F_CREATE | netlink::NLM_F_REPLACE,
+        &payload,
+    )
 }

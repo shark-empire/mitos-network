@@ -23,16 +23,26 @@ pub struct Monitor {
 
 impl Monitor {
     pub fn new(groups: u32) -> Result<Self> {
-        Ok(Monitor { sock: NlSocket::with_groups(groups)? })
+        Ok(Monitor {
+            sock: NlSocket::with_groups(groups)?,
+        })
     }
 
     /// Blocks until the next multicast notification arrives.
     pub fn recv(&self) -> Result<Vec<RawEvent>> {
         self.sock.recv_multicast(|msg_type, body| match msg_type {
-            netlink::RTM_NEWLINK => netlink::parse_link(body).map(|l| RawEvent::LinkNew { name: l.name }),
-            netlink::RTM_DELLINK => netlink::parse_link(body).map(|l| RawEvent::LinkDel { name: l.name }),
-            netlink::RTM_NEWADDR => netlink::parse_addr(body).map(|a| RawEvent::AddrNew { index: a.index }),
-            netlink::RTM_DELADDR => netlink::parse_addr(body).map(|a| RawEvent::AddrDel { index: a.index }),
+            netlink::RTM_NEWLINK => {
+                netlink::parse_link(body).map(|l| RawEvent::LinkNew { name: l.name })
+            }
+            netlink::RTM_DELLINK => {
+                netlink::parse_link(body).map(|l| RawEvent::LinkDel { name: l.name })
+            }
+            netlink::RTM_NEWADDR => {
+                netlink::parse_addr(body).map(|a| RawEvent::AddrNew { index: a.index })
+            }
+            netlink::RTM_DELADDR => {
+                netlink::parse_addr(body).map(|a| RawEvent::AddrDel { index: a.index })
+            }
             _ => None,
         })
     }

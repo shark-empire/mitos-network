@@ -19,16 +19,30 @@ fn discover_offer_request_ack_round_trip() {
     assert_eq!(parsed.xid, xid);
     assert_eq!(parsed.chaddr, mac);
 
-    let request = dhcp4::build_request(xid, mac, Ipv4Addr::new(10, 0, 0, 5), Ipv4Addr::new(10, 0, 0, 1), None);
+    let request = dhcp4::build_request(
+        xid,
+        mac,
+        Ipv4Addr::new(10, 0, 0, 5),
+        Ipv4Addr::new(10, 0, 0, 1),
+        None,
+    );
     let parsed_req = dhcp4::parse(&request).expect("request parses");
     assert_eq!(parsed_req.message_type(), Some(dhcp4::MSG_REQUEST));
-    assert_eq!(parsed_req.get_option(dhcp4::OPT_REQUESTED_IP), Some([10, 0, 0, 5].as_slice()));
+    assert_eq!(
+        parsed_req.get_option(dhcp4::OPT_REQUESTED_IP),
+        Some([10, 0, 0, 5].as_slice())
+    );
 }
 
 #[test]
 fn release_carries_client_and_server_addresses() {
     let mac = [0, 0, 0, 0, 0, 1];
-    let release = dhcp4::build_release(1, mac, Ipv4Addr::new(10, 0, 0, 5), Ipv4Addr::new(10, 0, 0, 1));
+    let release = dhcp4::build_release(
+        1,
+        mac,
+        Ipv4Addr::new(10, 0, 0, 5),
+        Ipv4Addr::new(10, 0, 0, 1),
+    );
     let parsed = dhcp4::parse(&release).unwrap();
     assert_eq!(parsed.message_type(), Some(dhcp4::MSG_RELEASE));
     assert_eq!(parsed.ciaddr, Ipv4Addr::new(10, 0, 0, 5));
@@ -43,7 +57,10 @@ fn sample_lease(lease_time_secs: u32) -> Lease {
         domain: None,
         server_id: Ipv4Addr::new(192, 168, 1, 1),
         lease_time_secs,
-        obtained_at_unix: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+        obtained_at_unix: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs(),
     }
 }
 
@@ -51,7 +68,13 @@ fn sample_lease(lease_time_secs: u32) -> Lease {
 fn lease_renewal_and_rebind_timing() {
     let lease = sample_lease(3600);
     let obtained = lease.obtained_at();
-    assert_eq!(lease.renewal_time(), obtained + std::time::Duration::from_secs(1800)); // T1: 50%
-    assert_eq!(lease.rebind_time(), obtained + std::time::Duration::from_secs(3150)); // T2: 87.5%
+    assert_eq!(
+        lease.renewal_time(),
+        obtained + std::time::Duration::from_secs(1800)
+    ); // T1: 50%
+    assert_eq!(
+        lease.rebind_time(),
+        obtained + std::time::Duration::from_secs(3150)
+    ); // T2: 87.5%
     assert!(!lease.is_expired());
 }

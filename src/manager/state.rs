@@ -30,7 +30,10 @@ pub enum NetworkState {
 /// plausibly change it, rather than trying to track transitions
 /// incrementally and risking drift.
 pub fn overall_state(devices: &[NetworkDevice], connectivity: ConnectivityState) -> NetworkState {
-    if devices.iter().any(|d| d.state == DeviceState::Connecting || d.state == DeviceState::IpConfiguring) {
+    if devices
+        .iter()
+        .any(|d| d.state == DeviceState::Connecting || d.state == DeviceState::IpConfiguring)
+    {
         return NetworkState::Connecting;
     }
     if devices.iter().any(|d| d.state == DeviceState::Deactivating) {
@@ -48,7 +51,9 @@ pub fn overall_state(devices: &[NetworkDevice], connectivity: ConnectivityState)
     if !any_manageable {
         return NetworkState::Unavailable;
     }
-    let any_available = devices.iter().any(|d| d.state != DeviceState::Unavailable && d.state != DeviceState::Unmanaged);
+    let any_available = devices
+        .iter()
+        .any(|d| d.state != DeviceState::Unavailable && d.state != DeviceState::Unmanaged);
     if !any_available {
         NetworkState::Unavailable
     } else {

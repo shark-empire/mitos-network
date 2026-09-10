@@ -61,10 +61,13 @@ fn ioctl_socket() -> Result<libc::c_int> {
 }
 
 fn set_ifr_name(ifr: &mut IfreqData, ifname: &str) -> Result<()> {
-    let cname = CString::new(ifname).map_err(|_| NetworkError::Parse("interface name contains a NUL byte".into()))?;
+    let cname = CString::new(ifname)
+        .map_err(|_| NetworkError::Parse("interface name contains a NUL byte".into()))?;
     let bytes = cname.as_bytes_with_nul();
     if bytes.len() > libc::IFNAMSIZ {
-        return Err(NetworkError::Parse(format!("interface name '{ifname}' too long")));
+        return Err(NetworkError::Parse(format!(
+            "interface name '{ifname}' too long"
+        )));
     }
     for (i, b) in bytes.iter().enumerate() {
         ifr.ifr_name[i] = *b as libc::c_char;
@@ -78,7 +81,10 @@ fn set_ifr_name(ifr: &mut IfreqData, ifname: &str) -> Result<()> {
 /// and a persistent mismatch would itself be a useful diagnostic.
 pub fn has_carrier(ifname: &str) -> Result<bool> {
     let fd = ioctl_socket()?;
-    let mut value = EthtoolValue { cmd: ETHTOOL_GLINK, data: 0 };
+    let mut value = EthtoolValue {
+        cmd: ETHTOOL_GLINK,
+        data: 0,
+    };
     let mut ifr: IfreqData = unsafe { std::mem::zeroed() };
     set_ifr_name(&mut ifr, ifname)?;
     ifr.ifr_data = &mut value as *mut _ as *mut libc::c_void;
@@ -89,7 +95,9 @@ pub fn has_carrier(ifname: &str) -> Result<bool> {
     let err = std::io::Error::last_os_error();
     unsafe { libc::close(fd) };
     if rc < 0 {
-        return Err(NetworkError::Device(format!("ETHTOOL_GLINK on {ifname} failed: {err}")));
+        return Err(NetworkError::Device(format!(
+            "ETHTOOL_GLINK on {ifname} failed: {err}"
+        )));
     }
     Ok(value.data != 0)
 }
@@ -115,13 +123,23 @@ pub fn link_settings(ifname: &str) -> Result<LinkSettings> {
     let err = std::io::Error::last_os_error();
     unsafe { libc::close(fd) };
     if rc < 0 {
-        return Err(NetworkError::Device(format!("ETHTOOL_GSET on {ifname} failed: {err}")));
+        return Err(NetworkError::Device(format!(
+            "ETHTOOL_GSET on {ifname} failed: {err}"
+        )));
     }
 
     // 0xffff ("SPEED_UNKNOWN") in either half means the driver doesn't
     // know/report a speed (common when the link is down).
     let combined_speed = ((cmd.speed_hi as u32) << 16) | cmd.speed as u32;
-    let speed_mbps = if cmd.speed == 0xffff || combined_speed == 0 { None } else { Some(combined_speed) };
+    let speed_mbps = if cmd.speed == 0xffff || combined_speed == 0 {
+        None
+    } else {
+        Some(combined_speed)
+    };
 
-    Ok(LinkSettings { speed_mbps, full_duplex: cmd.duplex == 1, autoneg: cmd.autoneg == 1 })
+    Ok(LinkSettings {
+        speed_mbps,
+        full_duplex: cmd.duplex == 1,
+        autoneg: cmd.autoneg == 1,
+    })
 }

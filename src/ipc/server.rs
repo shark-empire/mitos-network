@@ -29,11 +29,13 @@ fn required_capability(req: &Request) -> Capability {
         | Request::DeleteConnection { .. }
         | Request::ActivateConnection { .. }
         | Request::DeactivateConnection { .. } => Capability::ManageConnections,
-        Request::ScanWifi { .. } | Request::ConnectWifi { .. } | Request::ForgetWifi { .. } => Capability::ManageWifi,
-        Request::StartHotspot { .. } | Request::StopHotspot { .. } => Capability::ManageHotspot,
-        Request::SetFirewallZone { .. } | Request::AddFirewallRule { .. } | Request::RemoveFirewallRule { .. } => {
-            Capability::ManageFirewall
+        Request::ScanWifi { .. } | Request::ConnectWifi { .. } | Request::ForgetWifi { .. } => {
+            Capability::ManageWifi
         }
+        Request::StartHotspot { .. } | Request::StopHotspot { .. } => Capability::ManageHotspot,
+        Request::SetFirewallZone { .. }
+        | Request::AddFirewallRule { .. }
+        | Request::RemoveFirewallRule { .. } => Capability::ManageFirewall,
         Request::Reload => Capability::Admin,
     }
 }
@@ -84,7 +86,9 @@ fn handle_connection(stream: UnixStream, manager_tx: Sender<Command>) -> Result<
     manager_tx
         .send(Command::RegisterEventClient(reg_tx))
         .map_err(|_| NetworkError::Other("manager thread is gone".into()))?;
-    let (client_id, event_rx) = reg_rx.recv().map_err(|_| NetworkError::Other("manager did not reply to registration".into()))?;
+    let (client_id, event_rx) = reg_rx
+        .recv()
+        .map_err(|_| NetworkError::Other("manager did not reply to registration".into()))?;
 
     let event_writer = writer.clone();
     let event_thread = std::thread::spawn(move || {
@@ -121,7 +125,9 @@ fn request_loop(
                 manager_tx
                     .send(Command::Request(req, resp_tx))
                     .map_err(|_| NetworkError::Other("manager thread is gone".into()))?;
-                resp_rx.recv().unwrap_or_else(|_| super::messages::Response::Error("manager did not reply".into()))
+                resp_rx.recv().unwrap_or_else(|_| {
+                    super::messages::Response::Error("manager did not reply".into())
+                })
             }
             Err(e) => super::messages::Response::Error(e.to_string()),
         };

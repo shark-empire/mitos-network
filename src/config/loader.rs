@@ -10,18 +10,17 @@ use std::path::Path;
 pub fn load(config_dir: &Path) -> Result<NetworkConfig> {
     let mut cfg = defaults::default_config();
 
-    if let Some(general) = super::parser::parse_optional::<TopLevelGeneral>(
-        &config_dir.join("network.toml"),
-    )? {
+    if let Some(general) =
+        super::parser::parse_optional::<TopLevelGeneral>(&config_dir.join("network.toml"))?
+    {
         cfg.general = general.general;
     }
-    if let Some(interfaces) = super::parser::parse_optional::<TopLevelInterfaces>(
-        &config_dir.join("interfaces.toml"),
-    )? {
+    if let Some(interfaces) =
+        super::parser::parse_optional::<TopLevelInterfaces>(&config_dir.join("interfaces.toml"))?
+    {
         cfg.interfaces = interfaces.interface;
     }
-    if let Some(dns) = super::parser::parse_optional::<TopLevelDns>(&config_dir.join("dns.toml"))?
-    {
+    if let Some(dns) = super::parser::parse_optional::<TopLevelDns>(&config_dir.join("dns.toml"))? {
         cfg.dns = dns.dns;
     }
     if let Some(wireless) =

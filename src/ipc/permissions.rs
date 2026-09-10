@@ -23,7 +23,14 @@ pub fn peer_identity(stream: &UnixStream) -> Result<PeerIdentity> {
         )
     };
     if rc != 0 {
-        return Err(NetworkError::Other(format!("SO_PEERCRED failed: {}", std::io::Error::last_os_error())));
+        return Err(NetworkError::Other(format!(
+            "SO_PEERCRED failed: {}",
+            std::io::Error::last_os_error()
+        )));
     }
-    Ok(PeerIdentity { uid: cred.uid, gid: cred.gid, pid: cred.pid })
+    Ok(PeerIdentity {
+        uid: cred.uid,
+        gid: cred.gid,
+        pid: cred.pid,
+    })
 }

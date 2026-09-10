@@ -13,8 +13,19 @@ use super::link::LinkSettings;
 /// A human-readable one-liner for `mitos-netctl device show`, e.g.
 /// `"1000 Mbps, full duplex (auto-negotiated)"`.
 pub fn describe(settings: &LinkSettings) -> String {
-    let speed = settings.speed_mbps.map(|s| format!("{s} Mbps")).unwrap_or_else(|| "unknown speed".to_string());
-    let duplex = if settings.full_duplex { "full duplex" } else { "half duplex" };
-    let neg = if settings.autoneg { "auto-negotiated" } else { "fixed" };
+    let speed = settings
+        .speed_mbps
+        .map(|s| format!("{s} Mbps"))
+        .unwrap_or_else(|| "unknown speed".to_string());
+    let duplex = if settings.full_duplex {
+        "full duplex"
+    } else {
+        "half duplex"
+    };
+    let neg = if settings.autoneg {
+        "auto-negotiated"
+    } else {
+        "fixed"
+    };
     format!("{speed}, {duplex} ({neg})")
 }

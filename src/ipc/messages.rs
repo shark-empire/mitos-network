@@ -11,22 +11,60 @@ use serde::{Deserialize, Serialize};
 pub enum Request {
     GetState,
     ListDevices,
-    GetDevice { name: String },
+    GetDevice {
+        name: String,
+    },
     ListConnections,
-    GetConnection { id: String },
-    AddConnection { profile: ConnectionProfile },
-    DeleteConnection { id: String },
-    ActivateConnection { id: String },
-    DeactivateConnection { id: String },
-    ScanWifi { device: String },
-    ListWifiNetworks { device: String },
-    ConnectWifi { device: String, ssid: String, security: SecurityType, passphrase: Option<String> },
-    ForgetWifi { device: String, ssid: String },
-    StartHotspot { device: String, ssid: String, passphrase: Option<String>, uplink: Option<String> },
-    StopHotspot { device: String },
-    SetFirewallZone { interface: String, zone: String },
-    AddFirewallRule { rule: Rule },
-    RemoveFirewallRule { id: String },
+    GetConnection {
+        id: String,
+    },
+    AddConnection {
+        profile: ConnectionProfile,
+    },
+    DeleteConnection {
+        id: String,
+    },
+    ActivateConnection {
+        id: String,
+    },
+    DeactivateConnection {
+        id: String,
+    },
+    ScanWifi {
+        device: String,
+    },
+    ListWifiNetworks {
+        device: String,
+    },
+    ConnectWifi {
+        device: String,
+        ssid: String,
+        security: SecurityType,
+        passphrase: Option<String>,
+    },
+    ForgetWifi {
+        device: String,
+        ssid: String,
+    },
+    StartHotspot {
+        device: String,
+        ssid: String,
+        passphrase: Option<String>,
+        uplink: Option<String>,
+    },
+    StopHotspot {
+        device: String,
+    },
+    SetFirewallZone {
+        interface: String,
+        zone: String,
+    },
+    AddFirewallRule {
+        rule: Rule,
+    },
+    RemoveFirewallRule {
+        id: String,
+    },
     GetConnectivity,
     Diagnose,
     Reload,

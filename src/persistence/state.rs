@@ -17,7 +17,10 @@ pub fn init(dir: &Path) {
 }
 
 fn base_dir() -> PathBuf {
-    DATA_DIR.get().cloned().unwrap_or_else(|| PathBuf::from(crate::config::defaults_data_dir()))
+    DATA_DIR
+        .get()
+        .cloned()
+        .unwrap_or_else(|| PathBuf::from(crate::config::defaults_data_dir()))
 }
 
 fn lease_path(ifname: &str) -> PathBuf {
