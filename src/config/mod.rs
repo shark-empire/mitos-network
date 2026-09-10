@@ -74,7 +74,7 @@ impl Default for GeneralConfig {
 
 /// How an interface gets its address. Mirrors the "Auto (DHCP)" vs
 /// "Manual" choice every mainstream network manager exposes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum AddressMethod {
     #[default]
