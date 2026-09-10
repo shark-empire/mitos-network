@@ -22,7 +22,7 @@ fn install_signal_handlers() {
     unsafe {
         libc::signal(
             libc::SIGTERM,
-            handle_termination_signal as libc::sighandler_t,
+            handle_termination_signal as *const () as libc::sighandler_t,
         );
         libc::signal(
             libc::SIGINT,
