@@ -2,7 +2,7 @@
 //! live.
 //!
 //! Deliberately **not** stored inside `connection::profile`'s own TOML
-//! files under `data/profiles/` -- profiles are the kind of thing a user
+//! files under `<data-dir>/profiles/` -- profiles are the kind of thing a user
 //! might `cat`, back up, or paste into a bug report, and secrets have no
 //! business sitting in plain sight there the way early NetworkManager
 //! keyfiles (in)famously did.
