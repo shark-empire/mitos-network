@@ -1,0 +1,17 @@
+# Wi-Fi settings.
+
+[wireless]
+enabled = true
+
+# ISO 3166-1 alpha-2 country code (e.g. "US", "DE", "JP"), used for
+# regulatory-domain-correct channel/power limits. Leave unset only if
+# genuinely unknown -- wpa_supplicant/hostapd fall back to a
+# conservative worldwide domain, but a correct code is always better.
+# country-code = "US"
+
+scan-interval-secs = 60
+powersave = false
+
+# Must match wpa_supplicant's own `ctrl_interface=` setting for every
+# managed Wi-Fi interface.
+ctrl-interface-dir = "/run/mitos-network/wpa"

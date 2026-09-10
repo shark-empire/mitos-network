@@ -1,0 +1,23 @@
+# mitos-network daemon configuration.
+# See docs/architecture.md for what each option does.
+
+[general]
+# Manage every interface mitos-network discovers except those listed
+# in unmanaged-devices below. Set to false to opt in per-interface
+# instead (via interfaces.toml) -- most installs want `true`.
+manage-all-devices = true
+unmanaged-devices = ["lo"]
+
+ipv6-enabled = true
+
+# A plain-HTTP endpoint expected to answer 204 No Content on a genuinely
+# open connection. See docs/networking.md for why this must stay HTTP,
+# not HTTPS.
+connectivity-check-url = "http://connectivity.mitos-os.org/check"
+connectivity-check-interval-secs = 30
+
+socket-path = "/run/mitos-network/network.sock"
+data-dir = "/var/lib/mitos-network"
+
+# error | warn | info | debug
+log-level = "info"

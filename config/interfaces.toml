@@ -1,0 +1,13 @@
+# Per-interface static configuration. Any interface not listed here
+# uses method = "auto" (DHCP) with default settings -- most machines
+# never need to touch this file at all.
+#
+# Example: pin eth0 to a static address instead of DHCP.
+#
+# [interface.eth0]
+# method = "manual"
+# addresses = ["192.168.1.50/24"]
+# gateway = "192.168.1.1"
+# dns = ["192.168.1.1"]
+# mtu = 1500
+# autoconnect = true
