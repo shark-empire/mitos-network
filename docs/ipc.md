@@ -15,8 +15,8 @@ Every message (in either direction) is:
 
 ```
 +----------------------+----------------------------+
-| length: u32, little- | that many bytes of JSON |
-| endian (4 bytes) | |
+| length: u32, little- | that many bytes of JSON     |
+| endian (4 bytes)     |                             |
 +----------------------+----------------------------+
 ```
 
@@ -35,14 +35,14 @@ object, e.g. `{"ActivateConnection":{"id":"home-wifi"}}`).
 - **`Request`** -- sent client -> daemon. One request, one reply.
 - **`Response`** -- sent daemon -> client, always exactly one per `Request`.
 - **`Event`** -- sent daemon -> client, unsolicited, any time after the
-connection is established (there's no separate subscribe step -- every
-connection implicitly receives every broadcast event for as long as it
-stays open).
+  connection is established (there's no separate subscribe step -- every
+  connection implicitly receives every broadcast event for as long as it
+  stays open).
 - **`ServerMessage`** -- the actual top-level type on the wire from the
-daemon's side: `{"Response": ...}` or `{"Event": ...}`. A client waiting
-on a `Response` to a specific request it just sent should skip over any
-`Event`s it reads in the meantime (`ipc::client::Client::request` does
-exactly this).
+  daemon's side: `{"Response": ...}` or `{"Event": ...}`. A client waiting
+  on a `Response` to a specific request it just sent should skip over any
+  `Event`s it reads in the meantime (`ipc::client::Client::request` does
+  exactly this).
 
 ## Authorization
 
