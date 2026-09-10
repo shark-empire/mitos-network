@@ -77,6 +77,7 @@ impl Default for GeneralConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum AddressMethod {
+    #[default]
     Auto,
     Manual,
     Disabled,
