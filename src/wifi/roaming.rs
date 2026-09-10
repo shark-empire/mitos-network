@@ -21,10 +21,10 @@ pub fn best_bss<'a>(networks: &'a [WifiNetwork], ssid: &str) -> Option<&'a WifiN
 /// Whether it's worth switching from `current_bssid` to whatever the
 /// strongest visible BSS for `ssid` is right now.
 pub fn should_roam(
-    networks: &[WifiNetwork],
+    networks: &'a [WifiNetwork],
     ssid: &str,
     current_bssid: &str,
-) -> Option<&WifiNetwork> {
+) -> Option<&'a WifiNetwork> {
     let current_signal = networks
         .iter()
         .find(|n| n.bssid == current_bssid)
