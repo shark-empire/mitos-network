@@ -1,0 +1,59 @@
+name: mitos network-build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    name: fmt, check, build, test
+    # Linux-only on purpose: this crate is built directly on Linux-specific
+    # APIs (AF_NETLINK, SO_BINDTODEVICE, ETHTOOL ioctls, SO_PEERCRED, ...)
+    # via `libc`, so it will not build on macOS or Windows runners at all.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable (with rustfmt)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Cache cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # Fails the build on any formatting diff from stock `rustfmt`.
+      # NOTE: this codebase was originally written without a Rust
+      # toolchain available to format it, so the very first run of this
+      # step is likely to fail on style-only diffs, not real bugs -- run
+      # `cargo fmt --all` locally once and commit the result before
+      # relying on this as a hard gate.
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+
+      # Fast type/borrow-check pass across the lib, both binaries, and the
+      # integration tests, before spending time on a full build.
+      - name: cargo check
+        run: cargo check --all-targets --verbose
+
+      - name: cargo build
+        run: cargo build --all-targets --verbose
+
+      - name: cargo test
+        run: cargo test --verbose
