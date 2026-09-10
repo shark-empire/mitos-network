@@ -1,5 +1,5 @@
 //! Connection profile persistence: one TOML file per profile under
-//! `data/profiles/<id>.toml`. Secrets never live in these files -- see
+//! `<data-dir>/profiles/<id>.toml`. Secrets never live in these files -- see
 //! `security::secrets` -- so a profile file is safe to back up, diff,
 //! or hand to `mitos-netctl connection export` without leaking a Wi-Fi
 //! password.
