@@ -33,7 +33,7 @@ pub const MSG_RELEASE: u8 = 7;
 
 use std::net::Ipv4Addr;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Packet {
     pub op: u8,
     pub xid: u32,
