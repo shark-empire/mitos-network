@@ -21,7 +21,7 @@ pub struct DiagnosticReport {
     pub connectivity: ConnectivityState,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RouteSummary {
     pub destination: String,
     pub gateway: Option<String>,
@@ -29,13 +29,13 @@ pub struct RouteSummary {
     pub metric: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DnsSummary {
     pub nameservers: Vec<String>,
     pub search: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NeighborSummary {
     pub ip: String,
     pub mac: Option<String>,
