@@ -3,7 +3,7 @@
 ## Secrets: never in connection profiles
 
 `connection::profile::ConnectionProfile` (the on-disk, TOML,
-`data/profiles/<id>.toml` representation of a saved connection) never
+`<data-dir>/profiles/<id>.toml` representation of a saved connection) never
 contains a password, PSK, or private key -- only a `has_secret: bool` flag.
 Every secret lives in `security::secrets` instead, keyed by the profile's
 id. This is deliberate: a profile file is the kind of thing a user might
