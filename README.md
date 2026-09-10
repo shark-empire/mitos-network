@@ -53,7 +53,9 @@ systemd unit and the capabilities it grants.
 
 ```
 config/       Default network.toml / interfaces.toml / dns.toml / wireless.toml
-data/         Runtime data root (profiles/, leases/, secrets/ -- created at runtime)
+data/         Illustrative only -- shows the shape of the real runtime data
+              root (profiles/, leases/, secrets/), which actually lives at
+              /var/lib/mitos-network by default. See data/README.md.
 src/          The daemon + shared library (see docs/architecture.md)
 bin/          mitos-netctl, the CLI client
 services/     systemd unit
