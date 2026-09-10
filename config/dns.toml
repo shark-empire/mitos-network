@@ -1,0 +1,15 @@
+# DNS resolution settings.
+
+[dns]
+# auto:   use whatever the active connection (DHCP lease, VPN push-config,
+#         a manual profile's own dns = [...]) provides.
+# manual: always use `servers` below, ignoring what connections provide.
+# none:   don't manage /etc/resolv.conf at all.
+mode = "auto"
+
+# Used when mode = "manual", and as the emergency fallback
+# (dns::fallback) if the network's own DNS servers stop answering.
+servers = ["1.1.1.1", "9.9.9.9"]
+search-domains = []
+
+resolv-conf-path = "/etc/resolv.conf"
