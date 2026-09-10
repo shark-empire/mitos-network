@@ -1,0 +1,48 @@
+[package]
+name = "mitos-network"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+description = "Network policy and management daemon for mitosOS"
+license = "MIT"
+authors = ["mitosOS project"]
+
+[lib]
+name = "mitos_network"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mitos-network"
+path = "src/main.rs"
+
+[[bin]]
+name = "mitos-netctl"
+path = "bin/mitos-netctl.rs"
+
+[dependencies]
+# Raw syscalls / ioctl / netlink structs / SO_PEERCRED. Kept as the one
+# "system glue" dependency, same role it plays in mitos-shell and
+# mitos-session elsewhere in the mitosOS project.
+libc = "0.2"
+
+# Config files and on-disk connection profiles are TOML (matches the
+# config/*.toml files shipped with this crate).
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+
+# IPC wire format (length-prefixed JSON over a Unix socket, see
+# src/ipc/protocol.rs) and on-disk persistence.
+serde_json = "1"
+
+# Error types.
+thiserror = "1"
+
+[profile.release]
+opt-level = 2
+lto = true
+codegen-units = 1
+strip = true
+panic = "unwind"   # a bug in one connection handler must not take the daemon down
+
+[profile.dev]
+opt-level = 0
