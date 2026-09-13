@@ -22,7 +22,12 @@ pub enum TickKind {
 }
 
 pub enum Command {
-    Request(Request, Sender<Response>),
+    /// The `PeerIdentity` is the requesting IPC peer, resolved via
+    /// `SO_PEERCRED` before authorization even runs (see
+    /// `ipc::server`) -- threaded through here so audit-log entries
+    /// for mutating requests can record who actually asked for them,
+    /// rather than the manager process's own uid.
+    Request(Request, crate::security::PeerIdentity, Sender<Response>),
     RegisterEventClient(Sender<(u64, std::sync::mpsc::Receiver<Event>)>),
     UnregisterEventClient(u64),
     Hotplug(HotplugEvent),
@@ -86,8 +91,8 @@ impl NetworkManager {
         self.try_autoconnect_all();
         for cmd in rx.iter() {
             match cmd {
-                Command::Request(req, resp_tx) => {
-                    let resp = self.handle_request(req);
+                Command::Request(req, identity, resp_tx) => {
+                    let resp = self.handle_request(req, identity);
                     let _ = resp_tx.send(resp);
                 }
                 Command::RegisterEventClient(reply_tx) => {
@@ -219,7 +224,7 @@ impl NetworkManager {
 
         let sorted = crate::persistence::profiles::recently_used_first(
             &self.profiles_dir,
-            self.connections.clone(),
+            &self.connections,
         );
 
         let chosen = if device.device_type == DeviceType::WiFi {
@@ -241,7 +246,7 @@ impl NetworkManager {
         };
 
         if let Some(profile) = chosen {
-            self.activate_profile(&profile.id);
+            self.activate_profile(&profile.id, "system:autoconnect");
         }
     }
 
@@ -260,7 +265,7 @@ impl NetworkManager {
             .map(|d| d.name.clone())
     }
 
-    fn activate_profile(&mut self, profile_id: &str) -> Response {
+    fn activate_profile(&mut self, profile_id: &str, actor: &str) -> Response {
         let Some(profile) = self
             .connections
             .iter()
@@ -285,7 +290,7 @@ impl NetworkManager {
                 self.active.insert(device_name.clone(), active);
                 let _ = crate::persistence::profiles::touch(&self.profiles_dir, profile_id);
                 self.audit.record(
-                    &format!("uid:{}", nix_uid()),
+                    actor,
                     "connection.activate",
                     &format!("{profile_id} on {device_name}"),
                 );
@@ -305,7 +310,7 @@ impl NetworkManager {
         }
     }
 
-    fn deactivate_profile(&mut self, profile_id: &str) -> Response {
+    fn deactivate_profile(&mut self, profile_id: &str, actor: &str) -> Response {
         let Some((device_name, _)) = self
             .active
             .iter()
@@ -322,6 +327,11 @@ impl NetworkManager {
         };
         match crate::connection::deactivation::deactivate(&mut active, device) {
             Ok(()) => {
+                self.audit.record(
+                    actor,
+                    "connection.deactivate",
+                    &format!("{profile_id} on {device_name}"),
+                );
                 self.events
                     .broadcast(Event::ConnectionDeactivated(profile_id.to_string()));
                 self.broadcast_state();
@@ -331,7 +341,11 @@ impl NetworkManager {
         }
     }
 
-    fn handle_request(&mut self, req: Request) -> Response {
+    fn handle_request(&mut self, req: Request, identity: crate::security::PeerIdentity) -> Response {
+        // Everything below that mutates state passes this to
+        // `self.audit.record` -- see `logging::audit` for why it's the
+        // resolved IPC peer's uid rather than the manager process's own.
+        let actor = format!("uid:{}", identity.uid);
         match req {
             Request::GetState => {
                 let devices: Vec<_> = self.devices.all().cloned().collect();
@@ -355,6 +369,8 @@ impl NetworkManager {
             Request::AddConnection { profile } => {
                 match crate::persistence::profiles::save(&self.profiles_dir, &profile) {
                     Ok(()) => {
+                        self.audit
+                            .record(&actor, "connection.add", &profile.id);
                         self.connections.retain(|p| p.id != profile.id);
                         self.connections.push(profile);
                         Response::Ok
@@ -364,10 +380,11 @@ impl NetworkManager {
             }
             Request::DeleteConnection { id } => {
                 if self.active.values().any(|a| a.profile_id == id) {
-                    self.deactivate_profile(&id);
+                    self.deactivate_profile(&id, &actor);
                 }
                 match crate::persistence::profiles::delete(&self.profiles_dir, &id) {
                     Ok(()) => {
+                        self.audit.record(&actor, "connection.delete", &id);
                         self.connections.retain(|p| p.id != id);
                         let _ = self.secrets.delete_all(&id);
                         Response::Ok
@@ -375,8 +392,8 @@ impl NetworkManager {
                     Err(e) => Response::Error(e.to_string()),
                 }
             }
-            Request::ActivateConnection { id } => self.activate_profile(&id),
-            Request::DeactivateConnection { id } => self.deactivate_profile(&id),
+            Request::ActivateConnection { id } => self.activate_profile(&id, &actor),
+            Request::DeactivateConnection { id } => self.deactivate_profile(&id, &actor),
             Request::ScanWifi { device } => {
                 match crate::wifi::scanner::scan(&self.config.wireless.ctrl_interface_dir, &device)
                 {
@@ -410,9 +427,10 @@ impl NetworkManager {
                 if let Err(e) = crate::persistence::profiles::save(&self.profiles_dir, &profile) {
                     return Response::Error(e.to_string());
                 }
+                self.audit.record(&actor, "wifi.connect", &id);
                 self.connections.retain(|p| p.id != profile.id);
                 self.connections.push(profile);
-                self.activate_profile(&id)
+                self.activate_profile(&id, &actor)
             }
             Request::ForgetWifi { device, ssid } => {
                 let id = format!("wifi-{ssid}");
@@ -420,6 +438,7 @@ impl NetworkManager {
                 let _ = self.secrets.delete_all(&id);
                 let _ = crate::persistence::profiles::delete(&self.profiles_dir, &id);
                 self.connections.retain(|p| p.id != id);
+                self.audit.record(&actor, "wifi.forget", &id);
                 Response::Ok
             }
             Request::StartHotspot {
@@ -435,26 +454,116 @@ impl NetworkManager {
                     uplink.as_deref(),
                     &mut self.firewall,
                 ) {
-                    Ok(_session) => Response::Ok, // session handle intentionally not tracked yet -- see docs/networking.md
+                    Ok(_session) => {
+                        // session handle intentionally not tracked yet -- see docs/networking.md
+                        self.audit
+                            .record(&actor, "hotspot.start", &format!("{device} ({ssid})"));
+                        Response::Ok
+                    }
                     Err(e) => Response::Error(e.to_string()),
                 }
             }
             Request::StopHotspot { device } => {
                 crate::wifi::hotspot::stop(&device);
+                self.audit.record(&actor, "hotspot.stop", &device);
                 Response::Ok
             }
             Request::SetFirewallZone { interface, zone } => {
                 match self.firewall.assign_zone(&interface, &zone) {
+                    Ok(()) => {
+                        self.audit.record(
+                            &actor,
+                            "firewall.zone",
+                            &format!("{interface} -> {zone}"),
+                        );
+                        Response::Ok
+                    }
+                    Err(e) => Response::Error(e.to_string()),
+                }
+            }
+            Request::AddFirewallRule { rule } => {
+                let rule_id = rule.id.clone();
+                match self.firewall.add_rule(rule) {
+                    Ok(()) => {
+                        self.audit.record(&actor, "firewall.rule.add", &rule_id);
+                        Response::Ok
+                    }
+                    Err(e) => Response::Error(e.to_string()),
+                }
+            }
+            Request::RemoveFirewallRule { id } => match self.firewall.remove_rule(&id) {
+                Ok(()) => {
+                    self.audit.record(&actor, "firewall.rule.remove", &id);
+                    Response::Ok
+                }
+                Err(e) => Response::Error(e.to_string()),
+            },
+            Request::ListBluetoothDevices => match crate::bluetooth::bluetooth::list_devices() {
+                Ok(devices) => Response::BluetoothDevices(devices),
+                Err(e) => Response::Error(e.to_string()),
+            },
+            Request::BluetoothPower { on } => {
+                let result = if on {
+                    crate::bluetooth::bluetooth::power_on()
+                } else {
+                    crate::bluetooth::bluetooth::power_off()
+                };
+                match result {
+                    Ok(()) => {
+                        self.audit
+                            .record(&actor, "bluetooth.power", if on { "on" } else { "off" });
+                        Response::Ok
+                    }
+                    Err(e) => Response::Error(e.to_string()),
+                }
+            }
+            Request::BluetoothScan { on } => {
+                let result = if on {
+                    crate::bluetooth::bluetooth::start_scan()
+                } else {
+                    crate::bluetooth::bluetooth::stop_scan()
+                };
+                match result {
                     Ok(()) => Response::Ok,
                     Err(e) => Response::Error(e.to_string()),
                 }
             }
-            Request::AddFirewallRule { rule } => match self.firewall.add_rule(rule) {
-                Ok(()) => Response::Ok,
+            Request::PairBluetooth { mac } => match crate::bluetooth::bluetooth::pair(&mac) {
+                Ok(()) => {
+                    self.audit.record(&actor, "bluetooth.pair", &mac);
+                    Response::Ok
+                }
                 Err(e) => Response::Error(e.to_string()),
             },
-            Request::RemoveFirewallRule { id } => match self.firewall.remove_rule(&id) {
-                Ok(()) => Response::Ok,
+            Request::TrustBluetooth { mac } => match crate::bluetooth::bluetooth::trust(&mac) {
+                Ok(()) => {
+                    self.audit.record(&actor, "bluetooth.trust", &mac);
+                    Response::Ok
+                }
+                Err(e) => Response::Error(e.to_string()),
+            },
+            Request::ConnectBluetooth { mac } => match crate::bluetooth::bluetooth::connect(&mac)
+            {
+                Ok(()) => {
+                    self.audit.record(&actor, "bluetooth.connect", &mac);
+                    Response::Ok
+                }
+                Err(e) => Response::Error(e.to_string()),
+            },
+            Request::DisconnectBluetooth { mac } => {
+                match crate::bluetooth::bluetooth::disconnect(&mac) {
+                    Ok(()) => {
+                        self.audit.record(&actor, "bluetooth.disconnect", &mac);
+                        Response::Ok
+                    }
+                    Err(e) => Response::Error(e.to_string()),
+                }
+            }
+            Request::RemoveBluetooth { mac } => match crate::bluetooth::bluetooth::remove(&mac) {
+                Ok(()) => {
+                    self.audit.record(&actor, "bluetooth.remove", &mac);
+                    Response::Ok
+                }
                 Err(e) => Response::Error(e.to_string()),
             },
             Request::GetConnectivity => Response::Connectivity(self.connectivity),
@@ -470,17 +579,13 @@ impl NetworkManager {
             )) {
                 Ok(cfg) => {
                     self.config = cfg;
+                    self.audit.record(&actor, "config.reload", "");
                     Response::Ok
                 }
                 Err(e) => Response::Error(e.to_string()),
             },
         }
     }
-}
-
-fn nix_uid() -> u32 {
-    // SAFETY: getuid(2) has no failure mode.
-    unsafe { libc::getuid() }
 }
 
 impl std::fmt::Debug for NetworkManager {
