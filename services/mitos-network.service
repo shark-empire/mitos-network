@@ -35,7 +35,36 @@ ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/etc/resolv.conf /etc/hostname /run/mitos-network /var/lib/mitos-network
 PrivateTmp=true
-NoNewPrivileges=false
+
+# `NoNewPrivileges=true` blocks a process (and anything it execs) from
+# gaining privilege beyond what it started with -- e.g. via a setuid
+# binary or a file capability. Safe to enable here specifically because
+# this unit already runs as `User=root`: root gets everything in
+# `CapabilityBoundingSet` from exec() onward with no setuid/fscap step
+# involved, for this daemon or for `nft`/`wg`/`openvpn`/`hostapd`/
+# `bluetoothctl` underneath it, so there's nothing this flag would
+# break. (Deliberately not setting `ProtectHostname=true`: this daemon
+# calls `sethostname(2)` -- see `dns/hostname.rs` -- which that
+# directive exists specifically to block.)
+NoNewPrivileges=true
+
+# Everything below is additional sandboxing with no functional
+# dependency found anywhere in this daemon -- no kernel module
+# loading, no cgroup/clock/realtime manipulation, no namespace
+# creation, no JIT'd or self-modifying code, no exotic socket families
+# beyond Unix/IPv4/IPv6/netlink/packet.
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_PACKET
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
 
 [Install]
 WantedBy=multi-user.target
