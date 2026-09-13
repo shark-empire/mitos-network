@@ -60,7 +60,7 @@ fn autoconnect_prefers_pinned_interface() {
     pinned.autoconnect_priority = 0;
 
     // Collect references to candidates into a temporary slice/Vec
-    let candidate_refs: Vec<&ConnectionProfile> = candidates.iter().collect();
+    let candidate_refs: Vec<&ConnectionProfile> = profiles.iter().collect();
     let chosen = autoconnect::select(&device, &candidate_refs).expect("a profile matches");
 
     assert_eq!(
