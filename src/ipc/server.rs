@@ -102,9 +102,7 @@ pub fn serve(socket_path: &str, manager_tx: Sender<Command>) -> Result<()> {
         let prior = active_connections.fetch_add(1, Ordering::SeqCst);
         if prior >= MAX_CONNECTIONS {
             active_connections.fetch_sub(1, Ordering::SeqCst);
-            crate::logging::logger::warn(
-                "IPC connection cap reached, refusing a new connection",
-            );
+            crate::logging::logger::warn("IPC connection cap reached, refusing a new connection");
             continue; // dropping `stream` here closes it
         }
 
