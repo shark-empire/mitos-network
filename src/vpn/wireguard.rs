@@ -90,21 +90,15 @@ pub fn connect(config: &str, secrets: &dyn SecretsBackend, profile_id: &str) -> 
 fn set_crypto_params(cfg: &WireGuardConfig, private_key: &str) -> Result<()> {
     // The private key never touches argv (visible to any local user via
     // `ps`) -- write it to a mode-0600 temp file `wg` reads instead,
-    // then remove it immediately.
-    let key_path = std::env::temp_dir().join(format!("mitos-wg-{}.key", std::process::id()));
-    {
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&key_path)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            f.set_permissions(std::fs::Permissions::from_mode(0o600))?;
-        }
-        f.write_all(private_key.trim().as_bytes())?;
-    }
+    // then remove it immediately. The path is unpredictable and opened
+    // with `create_new` (0600 applied atomically at creation, not via a
+    // follow-up chmod) so another local user can't win a race by
+    // pre-placing a symlink at a guessed path -- see
+    // `security::tempfile` for why that matters even under
+    // `PrivateTmp=`.
+    let (key_path, mut f) = crate::security::tempfile::create_secret_temp_file("mitos-wg", "key")?;
+    f.write_all(private_key.trim().as_bytes())?;
+    drop(f);
 
     let mut cmd = Command::new("wg");
     cmd.arg("set")

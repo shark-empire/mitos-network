@@ -34,30 +34,35 @@ pub fn connect(
     cmd.arg("--config").arg(config_path);
 
     // Optional username/password auth (`auth-user-pass` in the .ovpn
-    // file pointing at a file we generate here, mode 0600, deleted
-    // right after openvpn reads it at startup).
+    // file pointing at a file we generate here). OpenVPN has no stdin
+    // or fd-based way to supply this -- `--auth-user-pass` with no
+    // argument reads from the *controlling terminal*, not stdin, and
+    // fails outright with no tty attached (as any daemon has none) --
+    // so a temp file is the only option. The path is unpredictable and
+    // opened with `create_new` (0600 applied atomically at creation)
+    // so another local user can't win a race by pre-placing a symlink
+    // at a guessed path; see `security::tempfile`.
+    //
+    // Deliberately NOT passing `--auth-nocache` here: combined with
+    // `--auth-user-pass <file>`, OpenVPN has a long-standing bug where
+    // a later TLS renegotiation re-reads credentials from the
+    // controlling terminal instead of the file, which fails the same
+    // way and silently drops the tunnel on its first `reneg-sec`
+    // rollover. Every mainstream OS's OpenVPN integration leaves the
+    // credentials cached in openvpn's own process memory for the
+    // session for this reason; that's an acceptable tradeoff for a
+    // long-running root daemon that isn't being ptraced.
     let mut userpass_path = None;
     if let (Some(user), Some(pass)) = (
         secrets.get(profile_id, "auth-username")?,
         secrets.get(profile_id, "auth-password")?,
     ) {
-        let path = std::env::temp_dir().join(format!("mitos-ovpn-{profile_id}.auth"));
-        {
-            let mut f = std::fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(&path)?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                f.set_permissions(std::fs::Permissions::from_mode(0o600))?;
-            }
-            writeln!(f, "{user}")?;
-            writeln!(f, "{pass}")?;
-        }
+        let (path, mut f) =
+            crate::security::tempfile::create_secret_temp_file("mitos-ovpn", "auth")?;
+        writeln!(f, "{user}")?;
+        writeln!(f, "{pass}")?;
+        drop(f);
         cmd.arg("--auth-user-pass").arg(&path);
-        cmd.arg("--auth-nocache"); // don't keep the plaintext password in openvpn's own memory longer than needed
         userpass_path = Some(path);
     }
 
