@@ -28,6 +28,14 @@ Usage:
   mitos-netctl hotspot start <device> <ssid> [passphrase] [uplink]
   mitos-netctl hotspot stop <device>
   mitos-netctl firewall zone <interface> <zone>
+  mitos-netctl bluetooth list
+  mitos-netctl bluetooth power <on|off>
+  mitos-netctl bluetooth scan <on|off>
+  mitos-netctl bluetooth pair <mac>
+  mitos-netctl bluetooth trust <mac>
+  mitos-netctl bluetooth connect <mac>
+  mitos-netctl bluetooth disconnect <mac>
+  mitos-netctl bluetooth remove <mac>
   mitos-netctl diagnose
   mitos-netctl monitor
   mitos-netctl reload",
@@ -170,6 +178,31 @@ fn main() {
             },
             _ => usage(),
         },
+        "bluetooth" => match args.get(1).map(String::as_str) {
+            Some("list") => Request::ListBluetoothDevices,
+            Some("power") => Request::BluetoothPower {
+                on: on_off_or_usage(&args, 2),
+            },
+            Some("scan") => Request::BluetoothScan {
+                on: on_off_or_usage(&args, 2),
+            },
+            Some("pair") => Request::PairBluetooth {
+                mac: arg_or_usage(&args, 2),
+            },
+            Some("trust") => Request::TrustBluetooth {
+                mac: arg_or_usage(&args, 2),
+            },
+            Some("connect") => Request::ConnectBluetooth {
+                mac: arg_or_usage(&args, 2),
+            },
+            Some("disconnect") => Request::DisconnectBluetooth {
+                mac: arg_or_usage(&args, 2),
+            },
+            Some("remove") => Request::RemoveBluetooth {
+                mac: arg_or_usage(&args, 2),
+            },
+            _ => usage(),
+        },
         _ => usage(),
     };
 
@@ -178,4 +211,12 @@ fn main() {
 
 fn arg_or_usage(args: &[String], index: usize) -> String {
     args.get(index).cloned().unwrap_or_else(|| usage())
+}
+
+fn on_off_or_usage(args: &[String], index: usize) -> bool {
+    match args.get(index).map(String::as_str) {
+        Some("on") => true,
+        Some("off") => false,
+        _ => usage(),
+    }
 }
