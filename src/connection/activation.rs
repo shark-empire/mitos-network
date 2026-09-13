@@ -30,6 +30,24 @@ pub fn activate(
             })?;
             let passphrase = if wifi.has_secret {
                 secrets.get(&profile.id, "psk")?
+            } else if wifi.has_eap_secret {
+                secrets.get(&profile.id, "eap-password")?
+            } else {
+                None
+            };
+            let key_password = if wifi.eap_private_key_path.is_some() {
+                secrets.get(&profile.id, "eap-private-key-password")?
+            } else {
+                None
+            };
+            let eap = if wifi.security.is_enterprise() {
+                Some(crate::wifi::wifi::EapConfig {
+                    identity: wifi.eap_identity.as_deref(),
+                    ca_cert_path: wifi.eap_ca_cert_path.as_deref(),
+                    client_cert_path: wifi.eap_client_cert_path.as_deref(),
+                    private_key_path: wifi.eap_private_key_path.as_deref(),
+                    private_key_password: key_password.as_deref(),
+                })
             } else {
                 None
             };
@@ -38,6 +56,7 @@ pub fn activate(
                 &wifi.ssid,
                 wifi.security,
                 passphrase.as_deref(),
+                eap.as_ref(),
             )?;
         }
         DeviceType::Vpn => {

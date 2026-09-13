@@ -9,13 +9,15 @@ use crate::device::{DeviceType, NetworkDevice};
 /// preferring (in order): explicitly pinned to this interface name,
 /// higher `autoconnect_priority`, then most-recently-used (handled by
 /// the caller passing `candidates` pre-sorted by
-/// `persistence::profiles::recently_used_first`).
+/// `persistence::profiles::recently_used_first`, which is also why
+/// this takes a slice of references rather than owned profiles).
 pub fn select<'a>(
     device: &NetworkDevice,
-    candidates: &'a [ConnectionProfile],
+    candidates: &[&'a ConnectionProfile],
 ) -> Option<&'a ConnectionProfile> {
-    let mut eligible: Vec<&ConnectionProfile> = candidates
+    let mut eligible: Vec<&'a ConnectionProfile> = candidates
         .iter()
+        .copied()
         .filter(|p| p.autoconnect && matches(p, device))
         .collect();
 
@@ -46,14 +48,15 @@ fn matches(profile: &ConnectionProfile, device: &NetworkDevice) -> bool {
 /// enough the way it is for wired autoconnect.
 pub fn select_wifi<'a>(
     device: &NetworkDevice,
-    candidates: &'a [ConnectionProfile],
+    candidates: &[&'a ConnectionProfile],
     visible_ssids: &[String],
 ) -> Option<&'a ConnectionProfile> {
     if device.device_type != DeviceType::WiFi {
         return None;
     }
-    let mut eligible: Vec<&ConnectionProfile> = candidates
+    let mut eligible: Vec<&'a ConnectionProfile> = candidates
         .iter()
+        .copied()
         .filter(|p| {
             p.autoconnect
                 && p.wifi

@@ -52,6 +52,34 @@ pub struct WifiSettings {
     /// passphrase itself.
     #[serde(default)]
     pub has_secret: bool,
+    /// WPA2/WPA3-Enterprise (802.1X) fields; unused for Personal/PSK
+    /// networks. `eap_identity` is the EAP username -- not secret,
+    /// stored here the same way `ssid` is. Certificate fields are
+    /// filesystem paths, not the certificates themselves:
+    /// mitos-network doesn't manage a certificate store, just points
+    /// wpa_supplicant at wherever the admin/user already placed them.
+    #[serde(default)]
+    pub eap_identity: Option<String>,
+    /// CA certificate used to validate the RADIUS server's identity.
+    /// This is what actually makes Enterprise Wi-Fi safe to use:
+    /// without it, wpa_supplicant completes the handshake with *any*
+    /// server claiming to be the right one, which is exactly what a
+    /// rogue AP impersonating a known enterprise network relies on.
+    #[serde(default)]
+    pub eap_ca_cert_path: Option<String>,
+    /// Client certificate + key, for EAP-TLS. Both unset for
+    /// password-based methods (PEAP/TTLS with `eap_identity` +
+    /// a secret).
+    #[serde(default)]
+    pub eap_client_cert_path: Option<String>,
+    #[serde(default)]
+    pub eap_private_key_path: Option<String>,
+    /// Key into `security::secrets`
+    /// (`get(&profile.id, "eap-password")`) for a PEAP/TTLS password,
+    /// or (`get(&profile.id, "eap-private-key-password")`) for an
+    /// encrypted EAP-TLS private key.
+    #[serde(default)]
+    pub has_eap_secret: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +119,11 @@ impl ConnectionProfile {
                 security,
                 hidden: false,
                 has_secret: security != crate::wifi::security::SecurityType::Open,
+                eap_identity: None,
+                eap_ca_cert_path: None,
+                eap_client_cert_path: None,
+                eap_private_key_path: None,
+                has_eap_secret: false,
             }),
             vpn: None,
         }
