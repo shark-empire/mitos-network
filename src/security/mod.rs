@@ -5,6 +5,7 @@
 pub mod permissions;
 pub mod policy;
 pub mod secrets;
+pub mod tempfile;
 pub mod validation;
 
 pub use permissions::PeerIdentity;

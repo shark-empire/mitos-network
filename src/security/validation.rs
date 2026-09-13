@@ -68,3 +68,59 @@ pub fn validate_identifier(id: &str) -> Result<()> {
     }
     Ok(())
 }
+
+/// A Bluetooth (or any 802-style) MAC address: exactly `XX:XX:XX:XX:XX:XX`
+/// in upper- or lower-case hex. Every caller that shells out to
+/// `bluetoothctl`/`bt-network` with an address routes it through here
+/// first -- `bluetoothctl` takes the address as a bare positional
+/// argument (never shell-interpreted, so this isn't about shell
+/// injection), but rejecting anything that isn't a well-formed address
+/// up front is cheap and closes off argument-confusion entirely.
+pub fn validate_mac_address(mac: &str) -> Result<()> {
+    let bad = || NetworkError::Parse(format!("'{mac}' is not a valid MAC address"));
+    let octets: Vec<&str> = mac.split(':').collect();
+    if octets.len() != 6 {
+        return Err(bad());
+    }
+    for octet in octets {
+        if octet.len() != 2 || !octet.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(bad());
+        }
+    }
+    Ok(())
+}
+
+/// A value destined for a `wpa_supplicant` control-interface
+/// `SET_NETWORK <id> <field> "<value>"` command (ssid, psk, identity,
+/// password, ca_cert, client_cert, private_key, ...). wpa_supplicant's
+/// quoted-string parsing does not define an escape for embedded quotes
+/// in this codebase's favor, so rather than trying to round-trip
+/// arbitrary bytes through it, anything that would break out of the
+/// quoted literal is rejected outright. This is what actually stops a
+/// crafted value (an attacker-broadcast SSID, or a passphrase/identity
+/// that happens to contain a quote) from injecting extra tokens into
+/// the control command.
+pub fn validate_quoted_value(field: &str, value: &str) -> Result<()> {
+    if value.contains('"') || value.contains('\\') || value.contains('\0') || value.contains('\n')
+    {
+        return Err(NetworkError::Wifi(format!(
+            "{field} may not contain a quote, backslash, or control character"
+        )));
+    }
+    Ok(())
+}
+
+/// A filesystem path for a certificate/key handed to wpa_supplicant
+/// (`ca_cert`, `client_cert`, `private_key`). Requires an absolute path
+/// so wpa_supplicant's own working directory can't change which file is
+/// actually read, and applies the same quoting rule as any other
+/// wpa_supplicant string field. Existence/readability is checked
+/// separately at the point of use, since that requires I/O.
+pub fn validate_cert_path(field: &str, path: &str) -> Result<()> {
+    if !path.starts_with('/') {
+        return Err(NetworkError::Config(format!(
+            "{field} must be an absolute path"
+        )));
+    }
+    validate_quoted_value(field, path)
+}
