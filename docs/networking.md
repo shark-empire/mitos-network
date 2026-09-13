@@ -30,10 +30,19 @@ assuming something works.
   (stateful address assignment) support -- most networks don't need it
   since SLAAC handles addressing, but a network that requires stateful
   DHCPv6 won't get an address from this client.
-- **802.1X / WPA-Enterprise** (`wifi/wifi.rs::connect`): sets `identity`/
-  `password` for a basic PEAP/TTLS-style setup, but doesn't yet expose CA
-  certificate pinning or client-certificate (EAP-TLS) configuration through
-  `ConnectionProfile`.
+- **802.1X / WPA-Enterprise** (`wifi/wifi.rs::connect`, `configure_eap`):
+  sets `identity`, a CA certificate (`ca_cert`) for RADIUS server
+  validation, and optionally a client certificate + private key
+  (EAP-TLS), sourced from `ConnectionProfile`'s `WifiSettings` (the
+  `eap_*` fields) and `security::secrets`. Doesn't yet pin a specific
+  `eap`/`phase2` method (e.g. forcing `PEAP` + `auth=MSCHAPV2`) --
+  wpa_supplicant negotiates one from what the RADIUS server offers,
+  which works but is slightly more downgrade-tolerant than pinning
+  would be. No CA certificate is still accepted (with a logged warning)
+  for guest/captive EAP deployments that genuinely have nothing to pin,
+  but this is the one Enterprise configuration that's meaningfully
+  *less* safe to use than PSK, since it means the RADIUS server's
+  identity goes unverified.
 - **OpenVPN session tracking** (`vpn/openvpn.rs`): spawns and can kill the
   process, but doesn't use OpenVPN's management interface, so it doesn't
   know the real tun/tap interface name OpenVPN picked, real-time connection
@@ -59,7 +68,12 @@ assuming something works.
 - **BlueZ D-Bus API**: `bluetooth/` shells out to `bluetoothctl`/`bt-network`
   rather than talking to `org.bluez` over D-Bus, to avoid a D-Bus client
   dependency. Worth revisiting if mitosOS ends up with a D-Bus story anyway
-  (see [[mitos-session]]).
+  (see [[mitos-session]]). This module is now fully wired up through
+  `ipc::messages` and `mitos-netctl bluetooth ...` (list/power/scan/
+  pair/trust/connect/disconnect/remove) -- it was previously implemented
+  but not reachable from anything, which was the more fundamental gap;
+  the D-Bus-vs-`bluetoothctl` question is just an implementation detail
+  of an already-usable feature now.
 - **Captive-portal browser flow**: `connectivity` detects a portal
   (`ConnectivityState::Portal`) and broadcasts it as an event; actually
   popping open a browser to the portal's login page is a desktop-shell
