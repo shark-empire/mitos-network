@@ -341,7 +341,11 @@ impl NetworkManager {
         }
     }
 
-    fn handle_request(&mut self, req: Request, identity: crate::security::PeerIdentity) -> Response {
+    fn handle_request(
+        &mut self,
+        req: Request,
+        identity: crate::security::PeerIdentity,
+    ) -> Response {
         // Everything below that mutates state passes this to
         // `self.audit.record` -- see `logging::audit` for why it's the
         // resolved IPC peer's uid rather than the manager process's own.
@@ -369,8 +373,7 @@ impl NetworkManager {
             Request::AddConnection { profile } => {
                 match crate::persistence::profiles::save(&self.profiles_dir, &profile) {
                     Ok(()) => {
-                        self.audit
-                            .record(&actor, "connection.add", &profile.id);
+                        self.audit.record(&actor, "connection.add", &profile.id);
                         self.connections.retain(|p| p.id != profile.id);
                         self.connections.push(profile);
                         Response::Ok
@@ -542,8 +545,7 @@ impl NetworkManager {
                 }
                 Err(e) => Response::Error(e.to_string()),
             },
-            Request::ConnectBluetooth { mac } => match crate::bluetooth::bluetooth::connect(&mac)
-            {
+            Request::ConnectBluetooth { mac } => match crate::bluetooth::bluetooth::connect(&mac) {
                 Ok(()) => {
                     self.audit.record(&actor, "bluetooth.connect", &mac);
                     Response::Ok
