@@ -30,10 +30,8 @@ impl WpaCtrl {
         // path in a world-writable directory is exactly the kind of
         // thing another local user could pre-place a symlink at ahead
         // of time. See `security::tempfile`.
-        let client_path = crate::security::tempfile::random_temp_path(
-            &format!("mitos-wpa-{ifname}"),
-            "sock",
-        )?;
+        let client_path =
+            crate::security::tempfile::random_temp_path(&format!("mitos-wpa-{ifname}"), "sock")?;
         let sock = UnixDatagram::bind(&client_path)
             .map_err(|e| NetworkError::Wifi(format!("bind control client socket: {e}")))?;
         sock.connect(&server_path).map_err(|e| {
