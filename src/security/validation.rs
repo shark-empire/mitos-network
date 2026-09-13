@@ -101,8 +101,7 @@ pub fn validate_mac_address(mac: &str) -> Result<()> {
 /// that happens to contain a quote) from injecting extra tokens into
 /// the control command.
 pub fn validate_quoted_value(field: &str, value: &str) -> Result<()> {
-    if value.contains('"') || value.contains('\\') || value.contains('\0') || value.contains('\n')
-    {
+    if value.contains('"') || value.contains('\\') || value.contains('\0') || value.contains('\n') {
         return Err(NetworkError::Wifi(format!(
             "{field} may not contain a quote, backslash, or control character"
         )));
