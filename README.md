@@ -83,9 +83,11 @@ for -- not a hardened, field-tested daemon yet. Concretely:
 **Real but narrower than a production tool, or explicitly stubbed:**
 see [`docs/networking.md`](docs/networking.md)'s "Partially implemented" /
 "Deliberate stubs" sections -- DHCPv6 (stateless only), WPA-Enterprise
-(no cert pinning yet), OpenVPN session tracking (no management-interface
-introspection), Wi-Fi scan result freshness (polls rather than subscribing
-to events), PAC proxy evaluation (stored, not evaluated).
+(CA + client cert supported now, no `eap`/`phase2` method pinning),
+OpenVPN session tracking (no management-interface introspection), Wi-Fi
+scan result freshness (polls rather than subscribing to events), PAC
+proxy evaluation (stored, not evaluated), WireGuard/Bluetooth still shell
+out to `wg`/`bluetoothctl` rather than netlink/D-Bus directly.
 
 **The single biggest gap:** this was written and manually reviewed
 (brace/paren balance, cross-module symbol references checked by hand) in an
