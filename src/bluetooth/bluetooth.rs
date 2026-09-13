@@ -1,7 +1,8 @@
 use crate::errors::{NetworkError, Result};
+use serde::{Deserialize, Serialize};
 use std::process::Command;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BluetoothDevice {
     pub mac: String,
     pub name: String,
@@ -65,21 +66,26 @@ pub fn list_devices() -> Result<Vec<BluetoothDevice>> {
 }
 
 pub fn pair(mac: &str) -> Result<()> {
+    crate::security::validation::validate_mac_address(mac)?;
     run(&["pair", mac]).map(|_| ())
 }
 
 pub fn trust(mac: &str) -> Result<()> {
+    crate::security::validation::validate_mac_address(mac)?;
     run(&["trust", mac]).map(|_| ())
 }
 
 pub fn connect(mac: &str) -> Result<()> {
+    crate::security::validation::validate_mac_address(mac)?;
     run(&["connect", mac]).map(|_| ())
 }
 
 pub fn disconnect(mac: &str) -> Result<()> {
+    crate::security::validation::validate_mac_address(mac)?;
     run(&["disconnect", mac]).map(|_| ())
 }
 
 pub fn remove(mac: &str) -> Result<()> {
+    crate::security::validation::validate_mac_address(mac)?;
     run(&["remove", mac]).map(|_| ())
 }
