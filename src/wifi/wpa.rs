@@ -26,8 +26,14 @@ impl WpaCtrl {
     pub fn connect(ctrl_dir: &str, ifname: &str) -> Result<Self> {
         crate::security::validation::validate_interface_name(ifname)?;
         let server_path = format!("{ctrl_dir}/{ifname}");
-        let client_path = PathBuf::from(format!("/tmp/mitos-wpa-{ifname}-{}", std::process::id()));
-        let _ = std::fs::remove_file(&client_path);
+        // Unpredictable, not `<ifname>-<pid>`: a fixed, guessable client
+        // path in a world-writable directory is exactly the kind of
+        // thing another local user could pre-place a symlink at ahead
+        // of time. See `security::tempfile`.
+        let client_path = crate::security::tempfile::random_temp_path(
+            &format!("mitos-wpa-{ifname}"),
+            "sock",
+        )?;
         let sock = UnixDatagram::bind(&client_path)
             .map_err(|e| NetworkError::Wifi(format!("bind control client socket: {e}")))?;
         sock.connect(&server_path).map_err(|e| {
@@ -96,7 +102,14 @@ impl WpaCtrl {
 
     pub fn set_network_quoted(&self, id: u32, key: &str, value: &str) -> Result<()> {
         // wpa_supplicant expects string-valued fields (ssid, psk,
-        // identity, password, ...) wrapped in literal double quotes.
+        // identity, password, ca_cert, ...) wrapped in literal double
+        // quotes. A value containing a quote would close the literal
+        // early and inject extra tokens into the control command --
+        // some of these fields (ssid, above all) are attacker-supplied
+        // in the sense that any nearby rogue AP can broadcast an
+        // arbitrary SSID, so this is a real boundary, not just
+        // defensive style.
+        crate::security::validation::validate_quoted_value(key, value)?;
         self.request_ok(&format!("SET_NETWORK {id} {key} \"{value}\""))
     }
 

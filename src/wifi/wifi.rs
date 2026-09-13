@@ -26,6 +26,20 @@ fn ctrl_dir() -> String {
         .unwrap_or_else(|| "/run/mitos-network/wpa".to_string())
 }
 
+/// 802.1X (Enterprise) configuration. Resolved by the caller
+/// (`connection::activation`) from `ConnectionProfile`'s `WifiSettings`
+/// plus `security::secrets` before being passed in here -- this module
+/// only speaks to wpa_supplicant, it doesn't know about profiles or
+/// secrets storage.
+#[derive(Debug, Default)]
+pub struct EapConfig<'a> {
+    pub identity: Option<&'a str>,
+    pub ca_cert_path: Option<&'a str>,
+    pub client_cert_path: Option<&'a str>,
+    pub private_key_path: Option<&'a str>,
+    pub private_key_password: Option<&'a str>,
+}
+
 /// Joins `ssid` on `ifname`, waiting for association to complete.
 /// wpa_supplicant itself must already be running against this
 /// interface (mitos-network supervises *starting* wpa_supplicant as
@@ -37,6 +51,7 @@ pub fn connect(
     ssid: &str,
     security: SecurityType,
     passphrase: Option<&str>,
+    eap: Option<&EapConfig<'_>>,
 ) -> Result<()> {
     crate::security::validation::validate_ssid(ssid)?;
     let ctrl = WpaCtrl::connect(&ctrl_dir(), ifname)?;
@@ -54,23 +69,26 @@ pub fn connect(
     ctrl.set_network_quoted(id, "ssid", ssid)?;
     ctrl.set_network_raw(id, "key_mgmt", security.key_mgmt())?;
 
-    match (security.needs_passphrase(), passphrase) {
-        (false, _) => {}
-        (true, Some(pass)) if security.is_enterprise() => {
-            // Enterprise (802.1X): `pass` is treated as the identity's
-            // password; a real deployment also needs `identity` and a
-            // CA cert path, which belong in `ConnectionProfile`'s wifi
-            // settings as a follow-up -- flagged in docs/networking.md.
-            ctrl.set_network_quoted(id, "password", pass)?;
-        }
-        (true, Some(pass)) => {
-            crate::security::validation::validate_wpa_passphrase(pass)?;
-            ctrl.set_network_quoted(id, "psk", pass)?;
-        }
-        (true, None) => {
-            return Err(NetworkError::Wifi(format!(
-                "'{ssid}' requires a passphrase but none was provided/stored"
-            )));
+    if security.is_enterprise() {
+        let eap = eap.ok_or_else(|| {
+            NetworkError::Wifi(format!(
+                "'{ssid}' is an Enterprise network but no EAP identity/certificate \
+                 configuration was provided"
+            ))
+        })?;
+        configure_eap(&ctrl, id, ssid, eap, passphrase)?;
+    } else {
+        match (security.needs_passphrase(), passphrase) {
+            (false, _) => {}
+            (true, Some(pass)) => {
+                crate::security::validation::validate_wpa_passphrase(pass)?;
+                ctrl.set_network_quoted(id, "psk", pass)?;
+            }
+            (true, None) => {
+                return Err(NetworkError::Wifi(format!(
+                    "'{ssid}' requires a passphrase but none was provided/stored"
+                )));
+            }
         }
     }
 
@@ -78,6 +96,78 @@ pub fn connect(
     ctrl.select_network(id)?;
 
     wait_for_association(&ctrl, ssid, Duration::from_secs(20))
+}
+
+/// Sets the wpa_supplicant `SET_NETWORK` fields for 802.1X auth:
+/// identity always, then either a password (PEAP/TTLS) or a client
+/// cert + private key (EAP-TLS) -- at least one of the two is
+/// required, but not both -- plus whichever of the certificate paths
+/// were supplied.
+fn configure_eap(
+    ctrl: &WpaCtrl,
+    id: u32,
+    ssid: &str,
+    eap: &EapConfig<'_>,
+    password: Option<&str>,
+) -> Result<()> {
+    let identity = eap.identity.ok_or_else(|| {
+        NetworkError::Wifi(format!(
+            "'{ssid}' is an Enterprise network but no EAP identity (username) was configured"
+        ))
+    })?;
+    ctrl.set_network_quoted(id, "identity", identity)?;
+
+    match password {
+        Some(pass) => ctrl.set_network_quoted(id, "password", pass)?,
+        None if eap.client_cert_path.is_none() => {
+            return Err(NetworkError::Wifi(format!(
+                "'{ssid}' needs either a password or a client certificate for Enterprise auth"
+            )));
+        }
+        None => {}
+    }
+
+    match eap.ca_cert_path {
+        Some(ca) => {
+            crate::security::validation::validate_cert_path("CA certificate path", ca)?;
+            check_cert_readable(ca)?;
+            ctrl.set_network_quoted(id, "ca_cert", ca)?;
+        }
+        None => {
+            // Not a hard error: some guest/captive EAP deployments
+            // genuinely have nothing to pin. But an unvalidated RADIUS
+            // server is exactly what lets a rogue AP impersonate a
+            // known enterprise network and phish these credentials, so
+            // this is surfaced loudly rather than silently accepted.
+            crate::logging::logger::warn(&format!(
+                "connecting to Enterprise network '{ssid}' with no CA certificate configured -- \
+                 the server's identity will not be validated"
+            ));
+        }
+    }
+
+    if let Some(cert) = eap.client_cert_path {
+        crate::security::validation::validate_cert_path("client certificate path", cert)?;
+        check_cert_readable(cert)?;
+        ctrl.set_network_quoted(id, "client_cert", cert)?;
+    }
+    if let Some(key) = eap.private_key_path {
+        crate::security::validation::validate_cert_path("private key path", key)?;
+        check_cert_readable(key)?;
+        ctrl.set_network_quoted(id, "private_key", key)?;
+        if let Some(key_pass) = eap.private_key_password {
+            ctrl.set_network_quoted(id, "private_key_passwd", key_pass)?;
+        }
+    }
+    Ok(())
+}
+
+/// Fails fast with a clear error rather than letting a bad path reach
+/// wpa_supplicant, where it'd surface as an opaque handshake failure.
+fn check_cert_readable(path: &str) -> Result<()> {
+    std::fs::File::open(path)
+        .map(|_| ())
+        .map_err(|e| NetworkError::Config(format!("cannot read '{path}': {e}")))
 }
 
 fn wait_for_association(ctrl: &WpaCtrl, ssid: &str, timeout: Duration) -> Result<()> {
