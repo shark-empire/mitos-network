@@ -59,8 +59,10 @@ fn autoconnect_prefers_pinned_interface() {
     pinned.interface_name = Some("eth0".to_string());
     pinned.autoconnect_priority = 0;
 
-    let candidates = vec![generic, pinned];
-    let chosen = autoconnect::select(&device, &candidates).expect("a profile matches");
+    // Collect references to candidates into a temporary slice/Vec
+    let candidate_refs: Vec<&ConnectionProfile> = candidates.iter().collect();
+    let chosen = autoconnect::select(&device, &candidate_refs).expect("a profile matches");
+
     assert_eq!(
         chosen.id, "pinned",
         "an interface-pinned profile should win even over a higher-priority generic one"
@@ -73,8 +75,8 @@ fn autoconnect_wifi_requires_visible_ssid() {
     let known = ConnectionProfile::new_wifi("known", "KnownNet", SecurityType::Wpa2Psk);
 
     let visible_without_it = vec!["OtherNet".to_string()];
-    assert!(autoconnect::select_wifi(&device, &[known.clone()], &visible_without_it).is_none());
+    assert!(autoconnect::select_wifi(&device, &[&known], &visible_without_it).is_none());
 
     let visible_with_it = vec!["KnownNet".to_string()];
-    assert!(autoconnect::select_wifi(&device, &[known], &visible_with_it).is_some());
+    assert!(autoconnect::select_wifi(&device, &[&known], &visible_with_it).is_some());
 }
