@@ -1,4 +1,4 @@
-name: mitos network-build check
+name: mitos network-build
 
 on:
   push:
