@@ -117,6 +117,14 @@ pub fn render(
 /// (`nft -f` on a script that starts with `table inet mitos_network {`
 /// re-creates the table from scratch, which is exactly the atomic
 /// full-replace semantics wanted here).
+///
+/// The ruleset is piped to `nft -f -` on stdin rather than written to
+/// a temp file first: a temp file here would need a predictable-ish
+/// name (or the extra machinery to avoid one) purely to hand `nft` a
+/// path to immediately re-read, when a pipe gets the same bytes there
+/// with no filesystem round trip -- fewer syscalls, and no window
+/// where the about-to-be-applied ruleset sits on disk for another
+/// local process to race against.
 pub fn apply(ruleset: &str) -> Result<()> {
     // Best-effort: fails (harmlessly) with nothing to delete on the
     // very first apply after boot, which is fine -- errors from this
@@ -125,17 +133,35 @@ pub fn apply(ruleset: &str) -> Result<()> {
         .args(["delete", "table", "inet", TABLE_NAME])
         .status();
 
-    let path = std::env::temp_dir().join(format!("mitos-network-{}.nft", std::process::id()));
-    std::fs::write(&path, ruleset)?;
-    let status = Command::new("nft")
+    let mut child = Command::new("nft")
         .arg("-f")
-        .arg(&path)
-        .status()
+        .arg("-")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
         .map_err(|e| NetworkError::Firewall(format!("failed to run nft: {e}")))?;
-    let _ = std::fs::remove_file(&path);
-    if !status.success() {
+
+    // Fed from a separate thread so a ruleset large enough to fill the
+    // pipe buffer can't deadlock against `nft` trying to write its own
+    // output back to us at the same time.
+    let mut stdin = child.stdin.take().expect("stdin was requested as piped");
+    let ruleset_owned = ruleset.to_string();
+    let writer = std::thread::spawn(move || {
+        use std::io::Write;
+        let _ = stdin.write_all(ruleset_owned.as_bytes());
+    });
+
+    let output = child
+        .wait_with_output()
+        .map_err(|e| NetworkError::Firewall(format!("failed to run nft: {e}")))?;
+    let _ = writer.join();
+
+    if !output.status.success() {
         return Err(NetworkError::Firewall(format!(
-            "nft -f exited with {status}"
+            "nft -f exited with {}: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
     Ok(())

@@ -42,6 +42,11 @@ impl Firewall {
     }
 
     pub fn assign_zone(&mut self, interface: &str, zone_name: &str) -> Result<()> {
+        // `interface` ends up quoted straight into the rendered
+        // ruleset's `iifname { ... }` set; this request travels over
+        // IPC from any `netdev`-group caller, not just root, so it's
+        // validated here rather than trusted from upstream.
+        crate::security::validation::validate_interface_name(interface)?;
         if !self.zones.iter().any(|z| z.name == zone_name) {
             return Err(NetworkError::Firewall(format!(
                 "unknown zone '{zone_name}'"
@@ -70,6 +75,25 @@ impl Firewall {
     }
 
     pub fn add_rule(&mut self, rule: Rule) -> Result<()> {
+        // `AddFirewallRule` is reachable by any `netdev`-group caller
+        // (see `security::policy`), so every field that ends up in the
+        // generated ruleset text is validated here rather than trusted
+        // as already-sane: an unchecked `source` in particular would
+        // let a rule's "source CIDR" field break out of the `ip saddr
+        // <src>` expression it's embedded in and inject arbitrary
+        // additional ruleset text.
+        crate::security::validation::validate_identifier(&rule.id)?;
+        if !self.zones.iter().any(|z| z.name == rule.zone) {
+            return Err(NetworkError::Firewall(format!(
+                "unknown zone '{}'",
+                rule.zone
+            )));
+        }
+        if let Some(src) = &rule.source {
+            crate::ip::address::parse_cidr(src).map_err(|_| {
+                NetworkError::Firewall(format!("'{src}' is not a valid source address/CIDR"))
+            })?;
+        }
         self.rules.retain(|r| r.id != rule.id);
         self.rules.push(rule);
         self.apply()
@@ -92,6 +116,8 @@ impl Firewall {
     /// `lan_interface` to forward through it -- what `sharing::nat`
     /// calls when standing up internet sharing.
     pub fn enable_sharing(&mut self, lan_interface: &str, wan_interface: &str) -> Result<()> {
+        crate::security::validation::validate_interface_name(lan_interface)?;
+        crate::security::validation::validate_interface_name(wan_interface)?;
         if !self
             .masquerade_interfaces
             .iter()
