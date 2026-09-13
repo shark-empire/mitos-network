@@ -60,8 +60,8 @@ fn autoconnect_prefers_pinned_interface() {
     pinned.autoconnect_priority = 0;
 
     let profile_list = vec![&generic, &pinned];
-    let chosen = autoconnect::select(&device, &profile_list)
-       .expect("autoconnect should select a profile");
+    let chosen =
+        autoconnect::select(&device, &profile_list).expect("autoconnect should select a profile");
 
     assert_eq!(
         chosen.id, "pinned",
