@@ -1,3 +1,4 @@
+use crate::bluetooth::bluetooth::BluetoothDevice;
 use crate::connection::ConnectionProfile;
 use crate::connectivity::ConnectivityState;
 use crate::device::{DeviceState, NetworkDevice};
@@ -68,6 +69,28 @@ pub enum Request {
     GetConnectivity,
     Diagnose,
     Reload,
+    ListBluetoothDevices,
+    BluetoothPower {
+        on: bool,
+    },
+    BluetoothScan {
+        on: bool,
+    },
+    PairBluetooth {
+        mac: String,
+    },
+    TrustBluetooth {
+        mac: String,
+    },
+    ConnectBluetooth {
+        mac: String,
+    },
+    DisconnectBluetooth {
+        mac: String,
+    },
+    RemoveBluetooth {
+        mac: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,6 +104,7 @@ pub enum Response {
     WifiNetworks(Vec<WifiNetwork>),
     Connectivity(ConnectivityState),
     Diagnostics(Box<DiagnosticReport>),
+    BluetoothDevices(Vec<BluetoothDevice>),
     Error(String),
 }
 

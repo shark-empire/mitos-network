@@ -10,7 +10,17 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::io::{Read, Write};
 
-const MAX_MESSAGE_LEN: u32 = 16 * 1024 * 1024; // 16 MiB: generous, but not "a hostile peer can OOM us"
+// 1 MiB: every real message here is a small JSON struct (a handful of
+// strings, or a list of at most a few hundred devices/connections) --
+// even a `ListConnections`/`Diagnose` reply comfortably fits in a few
+// KiB. This is checked *before* the receive buffer is allocated
+// (below), so it's the actual ceiling on how much memory one incoming
+// message can make the daemon allocate; kept tight rather than merely
+// "not unbounded" so that ceiling, multiplied across every connection
+// the IPC server will allow at once (`ipc::server::MAX_CONNECTIONS`),
+// stays a small, predictable number instead of a theoretical multi-GiB
+// worst case.
+const MAX_MESSAGE_LEN: u32 = 1024 * 1024;
 
 pub fn write_message<T: Serialize>(stream: &mut impl Write, value: &T) -> Result<()> {
     let bytes = serde_json::to_vec(value)?;
