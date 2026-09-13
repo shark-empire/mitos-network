@@ -67,10 +67,20 @@ fn filetime_set_mtime_best_effort(path: &Path, _now: std::time::SystemTime) {
 }
 
 /// Sorts `profiles` most-recently-used first, using each profile file's
-/// mtime as the proxy for "last used" (see [`touch`]).
-pub fn recently_used_first(dir: &Path, profiles: Vec<ConnectionProfile>) -> Vec<ConnectionProfile> {
-    let mut with_mtime: Vec<(std::time::SystemTime, ConnectionProfile)> = profiles
-        .into_iter()
+/// mtime as the proxy for "last used" (see [`touch`]). Takes and
+/// returns references rather than owned `ConnectionProfile`s: this is
+/// consulted on every autoconnect attempt (a device coming up, a
+/// saved Wi-Fi network coming back into range), and the caller already
+/// holds the real `Vec<ConnectionProfile>` for at least as long as the
+/// sorted order is needed -- there's nothing to gain from a deep copy
+/// of every profile just to read their `id`/mtime and hand back an
+/// order.
+pub fn recently_used_first<'a>(
+    dir: &Path,
+    profiles: &'a [ConnectionProfile],
+) -> Vec<&'a ConnectionProfile> {
+    let mut with_mtime: Vec<(std::time::SystemTime, &'a ConnectionProfile)> = profiles
+        .iter()
         .map(|p| {
             let mtime = profile_path(dir, &p.id)
                 .ok()
