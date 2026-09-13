@@ -26,7 +26,8 @@ fn install_signal_handlers() {
         );
         libc::signal(
             libc::SIGINT,
-            handle_termination_signal as libc::sighandler_t,
+            handle_termination_signal as *const () as libc::sighandler_t
+
         );
     }
 }
