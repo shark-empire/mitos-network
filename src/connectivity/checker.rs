@@ -72,7 +72,28 @@ pub fn check(url: &str, timeout: Duration) -> Result<ConnectivityState> {
     }
 
     let mut response = Vec::new();
-    if stream.read_to_end(&mut response).is_err() && response.is_empty() {
+    // Bounded, not `read_to_end`: this runs precisely when the network
+    // is untrusted (that's the whole point of a connectivity/captive-
+    // portal check), so the peer answering is exactly who a DoS
+    // attempt would come from. Only the status line and a `Location:`
+    // header ever matter for classification -- 16 KiB is generous
+    // headroom for those plus whatever other headers a portal sends,
+    // without letting a hostile or misbehaving endpoint grow this
+    // buffer without limit.
+    const MAX_RESPONSE_BYTES: usize = 16 * 1024;
+    let mut chunk = [0u8; 4096];
+    loop {
+        let n = match stream.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(_) => break,
+        };
+        response.extend_from_slice(&chunk[..n]);
+        if response.len() >= MAX_RESPONSE_BYTES {
+            break;
+        }
+    }
+    if response.is_empty() {
         return Ok(ConnectivityState::None);
     }
 
