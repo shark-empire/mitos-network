@@ -59,8 +59,8 @@ fn autoconnect_prefers_pinned_interface() {
     pinned.interface_name = Some("eth0".to_string());
     pinned.autoconnect_priority = 0;
 
-let profile_list = get_some_profiles(); 
-let candidate_refs: Vec<&ConnectionProfile> = profile_list.iter().collect();
+    let profile_list = get_some_profiles();
+    let candidate_refs: Vec<&ConnectionProfile> = profile_list.iter().collect();
 
     assert_eq!(
         chosen.id, "pinned",
