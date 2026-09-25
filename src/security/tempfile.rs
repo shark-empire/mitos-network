@@ -46,6 +46,26 @@ pub fn random_temp_path(prefix: &str, suffix: &str) -> Result<PathBuf> {
     Ok(std::env::temp_dir().join(name))
 }
 
+/// Same shape as [`create_secret_temp_file`] but for a directory
+/// (mode 0700): used where a subprocess needs to be handed a whole
+/// scratch directory rather than one file -- OpenVPN's `--up`/`--down`
+/// scripts and the interface-name file they write, in this crate's
+/// case.
+pub fn create_secret_temp_dir(prefix: &str) -> Result<PathBuf> {
+    use std::os::unix::fs::DirBuilderExt;
+    for _ in 0..4 {
+        let path = random_temp_path(prefix, "d")?;
+        match std::fs::DirBuilder::new().mode(0o700).create(&path) {
+            Ok(()) => return Ok(path),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(NetworkError::Io(e)),
+        }
+    }
+    Err(NetworkError::Other(
+        "could not create a temp directory after several attempts".into(),
+    ))
+}
+
 /// Creates a new file at an unpredictable temp path with mode 0600
 /// applied atomically at creation time (no window where a more
 /// permissive default mode is briefly in effect), refusing outright

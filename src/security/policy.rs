@@ -16,6 +16,7 @@ pub enum Capability {
     ManageFirewall,
     ManageHotspot,
     ManageBluetooth,
+    ManageProxy,
     /// Change daemon configuration itself, reload, shut down.
     Admin,
 }

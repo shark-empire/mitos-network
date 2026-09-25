@@ -123,3 +123,23 @@ pub fn validate_cert_path(field: &str, path: &str) -> Result<()> {
     }
     validate_quoted_value(field, path)
 }
+
+/// EAP method names wpa_supplicant accepts for its `eap`
+/// `SET_NETWORK` field (see `man wpa_supplicant.conf`'s "eap" option)
+/// -- an allow-list rather than "anything that looks like a token",
+/// since that field is written unquoted (`set_network_raw`, not
+/// `set_network_quoted`) and so gets none of `validate_quoted_value`'s
+/// protection.
+const KNOWN_EAP_METHODS: &[&str] = &[
+    "TLS", "PEAP", "TTLS", "FAST", "LEAP", "PWD", "PSK", "PAX", "SAKE", "GPSK", "IKEV2", "TNC",
+    "GTC", "MD5", "OTP", "SIM", "AKA", "AKA'", "WSC", "TEAP",
+];
+
+pub fn validate_eap_method(method: &str) -> Result<()> {
+    if !KNOWN_EAP_METHODS.contains(&method.to_ascii_uppercase().as_str()) {
+        return Err(NetworkError::Wifi(format!(
+            "'{method}' is not a recognized EAP method"
+        )));
+    }
+    Ok(())
+}
