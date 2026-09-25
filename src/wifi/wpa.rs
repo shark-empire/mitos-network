@@ -5,17 +5,18 @@
 //! one reply back (`"OK"`, `"FAIL"`, or command-specific text). Command
 //! syntax and reply shapes here are cross-referenced against
 //! wpa_supplicant's own `wpa_ctrl.h`/`ctrl_iface.c` documentation.
-//! Not implemented: the unsolicited event stream (`ATTACH` +
-//! `CTRL-EVENT-*` push notifications) -- `wifi::scanner` polls
-//! `SCAN_RESULTS` after a short delay instead of subscribing to
-//! `CTRL-EVENT-SCAN-RESULTS`. Documented as a known gap in
-//! `docs/networking.md`.
+//!
+//! [`WpaCtrl`] is the synchronous request/reply half; [`WpaMonitor`]
+//! is the other half, the unsolicited `CTRL-EVENT-*` push stream a
+//! client subscribes to via `ATTACH` -- see its doc comment for why
+//! that's a genuinely separate connection rather than a mode switch on
+//! the same one.
 
 use crate::errors::{NetworkError, Result};
 use std::collections::HashMap;
 use std::os::unix::net::UnixDatagram;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub struct WpaCtrl {
     sock: UnixDatagram,
@@ -162,6 +163,104 @@ impl WpaCtrl {
 
 impl Drop for WpaCtrl {
     fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.client_path);
+    }
+}
+
+/// A subscription to wpa_supplicant's unsolicited event stream
+/// (`ATTACH` / `CTRL-EVENT-*` pushes), used to wait for a specific
+/// event -- e.g. `wifi::scanner` waiting for `CTRL-EVENT-SCAN-RESULTS`
+/// instead of guessing how long a scan takes.
+///
+/// Deliberately a *second* connection to the same control socket
+/// `WpaCtrl` talks to, not a second use of the same one: once
+/// attached, wpa_supplicant pushes event lines onto a socket with no
+/// framing that distinguishes "this is a push" from "this is the
+/// reply to the command you just sent" -- a synchronous
+/// request/reply caller and an asynchronous event reader sharing one
+/// socket would race each other for whichever message arrives next.
+/// `wpa_cli` avoids exactly this by keeping separate `ctrl_conn`/
+/// `mon_conn` sockets; this mirrors that.
+pub struct WpaMonitor {
+    sock: UnixDatagram,
+    client_path: PathBuf,
+}
+
+impl WpaMonitor {
+    pub fn attach(ctrl_dir: &str, ifname: &str) -> Result<Self> {
+        crate::security::validation::validate_interface_name(ifname)?;
+        let server_path = format!("{ctrl_dir}/{ifname}");
+        let client_path = crate::security::tempfile::random_temp_path(
+            &format!("mitos-wpa-mon-{ifname}"),
+            "sock",
+        )?;
+        let sock = UnixDatagram::bind(&client_path)
+            .map_err(|e| NetworkError::Wifi(format!("bind monitor socket: {e}")))?;
+        sock.connect(&server_path).map_err(|e| {
+            NetworkError::Wifi(format!("connect monitor to wpa_supplicant at {server_path}: {e}"))
+        })?;
+        let mon = WpaMonitor { sock, client_path };
+        let reply = mon.raw_request("ATTACH")?;
+        if reply.trim() != "OK" {
+            return Err(NetworkError::Wifi(format!("ATTACH failed: {reply}")));
+        }
+        Ok(mon)
+    }
+
+    fn raw_request(&self, cmd: &str) -> Result<String> {
+        self.sock.send(cmd.as_bytes())?;
+        let mut buf = vec![0u8; 8192];
+        let n = self.sock.recv(&mut buf)?;
+        Ok(String::from_utf8_lossy(&buf[..n]).trim_end().to_string())
+    }
+
+    /// Blocks, for up to `timeout` total across however many
+    /// unrelated pushes arrive first, for the first event whose name
+    /// is one of `names`. wpa_supplicant prefixes unsolicited pushes
+    /// with a priority level (e.g. `<2>CTRL-EVENT-SCAN-RESULTS`),
+    /// which this strips before matching. `Ok(None)` means the
+    /// timeout elapsed without a match, not an error -- callers that
+    /// have a sensible fallback for "never heard back" (like
+    /// `wifi::scanner`, which can just read whatever `SCAN_RESULTS`
+    /// has anyway) shouldn't have to match on a specific error variant
+    /// to take it.
+    pub fn wait_for_any(&self, names: &[&str], timeout: Duration) -> Result<Option<String>> {
+        let deadline = Instant::now() + timeout;
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Ok(None);
+            }
+            self.sock.set_read_timeout(Some(remaining))?;
+            let mut buf = vec![0u8; 8192];
+            let n = match self.sock.recv(&mut buf) {
+                Ok(n) => n,
+                Err(e)
+                    if e.kind() == std::io::ErrorKind::WouldBlock
+                        || e.kind() == std::io::ErrorKind::TimedOut =>
+                {
+                    return Ok(None);
+                }
+                Err(e) => return Err(e.into()),
+            };
+            let line = String::from_utf8_lossy(&buf[..n]).trim_end().to_string();
+            let event = line
+                .strip_prefix('<')
+                .and_then(|s| s.split_once('>'))
+                .map(|(_, rest)| rest)
+                .unwrap_or(line.as_str());
+            if names.iter().any(|n| event.starts_with(n)) {
+                return Ok(Some(line));
+            }
+            // Some other CTRL-EVENT-* we're not waiting for -- keep
+            // reading within whatever's left of the deadline.
+        }
+    }
+}
+
+impl Drop for WpaMonitor {
+    fn drop(&mut self) {
+        let _ = self.raw_request("DETACH");
         let _ = std::fs::remove_file(&self.client_path);
     }
 }

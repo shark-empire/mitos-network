@@ -38,6 +38,15 @@ pub struct EapConfig<'a> {
     pub client_cert_path: Option<&'a str>,
     pub private_key_path: Option<&'a str>,
     pub private_key_password: Option<&'a str>,
+    /// Pin a specific outer EAP method (`"PEAP"`, `"TTLS"`, `"TLS"`,
+    /// ...) instead of leaving it to wpa_supplicant/the server to
+    /// negotiate. See `connection::profile::WifiSettings::eap_method`
+    /// for why an unpinned method is a real weakening, not just a
+    /// missing nicety.
+    pub eap_method: Option<&'a str>,
+    /// Pin the inner (phase 2) method for tunneled EAP (PEAP/TTLS),
+    /// e.g. `"auth=MSCHAPV2"`.
+    pub eap_phase2: Option<&'a str>,
 }
 
 /// Joins `ssid` on `ifname`, waiting for association to complete.
@@ -116,6 +125,15 @@ fn configure_eap(
         ))
     })?;
     ctrl.set_network_quoted(id, "identity", identity)?;
+
+    if let Some(method) = eap.eap_method {
+        crate::security::validation::validate_eap_method(method)?;
+        ctrl.set_network_raw(id, "eap", &method.to_ascii_uppercase())?;
+    }
+    if let Some(phase2) = eap.eap_phase2 {
+        crate::security::validation::validate_quoted_value("EAP phase2", phase2)?;
+        ctrl.set_network_quoted(id, "phase2", phase2)?;
+    }
 
     match password {
         Some(pass) => ctrl.set_network_quoted(id, "password", pass)?,

@@ -1,25 +1,43 @@
 //! Triggers and collects Wi-Fi scans.
 
 use super::network::{parse_scan_results, WifiNetwork};
-use super::wpa::WpaCtrl;
+use super::wpa::{WpaCtrl, WpaMonitor};
 use crate::errors::Result;
-use std::thread;
 use std::time::Duration;
 
-/// wpa_supplicant scans asynchronously; without subscribing to the
-/// unsolicited event stream (see the caveat in `wifi::wpa`), the
-/// pragmatic approach is: ask it to scan, give it long enough to
-/// finish (a single-channel active scan is a few hundred ms; a full
-/// 2.4+5GHz sweep is usually done within this window), then read
-/// results. `manager::scheduler` re-runs this periodically anyway
-/// (`wireless.scan-interval-secs`), so a slightly stale read here just
-/// gets corrected on the next tick.
-const SCAN_SETTLE_TIME: Duration = Duration::from_secs(3);
+/// Upper bound on how long a scan is allowed to take before this just
+/// reads whatever `SCAN_RESULTS` has anyway: a single-channel active
+/// scan is a few hundred ms, a full 2.4+5GHz sweep is usually done
+/// within a few seconds, so anything beyond this points at a stuck
+/// driver rather than a scan still legitimately in progress.
+/// `manager::scheduler` re-runs this periodically anyway
+/// (`wireless.scan-interval-secs`), so even a read this safety net had
+/// to cut short just gets corrected on the next tick.
+const SCAN_MAX_WAIT: Duration = Duration::from_secs(8);
 
 pub fn scan(ctrl_dir: &str, ifname: &str) -> Result<Vec<WifiNetwork>> {
     let ctrl = WpaCtrl::connect(ctrl_dir, ifname)?;
-    ctrl.scan()?;
-    thread::sleep(SCAN_SETTLE_TIME);
+    // Attach *before* triggering the scan, not after: otherwise a scan
+    // that finishes fast enough could push CTRL-EVENT-SCAN-RESULTS
+    // before this is listening for it, and this would wait the full
+    // SCAN_MAX_WAIT for an event that already happened. If ATTACH
+    // itself fails (a wpa_supplicant build without event-stream
+    // support, or just a transient error), fall back to the old
+    // trigger-then-settle behavior rather than failing the scan
+    // outright -- a working scan beats a strictly-correct one here.
+    match WpaMonitor::attach(ctrl_dir, ifname) {
+        Ok(monitor) => {
+            ctrl.scan()?;
+            let _ = monitor.wait_for_any(
+                &["CTRL-EVENT-SCAN-RESULTS", "CTRL-EVENT-SCAN-FAILED"],
+                SCAN_MAX_WAIT,
+            )?;
+        }
+        Err(_) => {
+            ctrl.scan()?;
+            std::thread::sleep(Duration::from_secs(3));
+        }
+    }
     let raw = ctrl.scan_results_raw()?;
     Ok(parse_scan_results(&raw))
 }
@@ -27,7 +45,7 @@ pub fn scan(ctrl_dir: &str, ifname: &str) -> Result<Vec<WifiNetwork>> {
 /// Reads the last scan results without triggering a new scan --
 /// cheaper, used when a caller just wants "what's visible right now"
 /// (e.g. autoconnect deciding whether a known SSID is in range) rather
-/// than a fresh, several-second scan.
+/// than a fresh scan.
 pub fn last_results(ctrl_dir: &str, ifname: &str) -> Result<Vec<WifiNetwork>> {
     let ctrl = WpaCtrl::connect(ctrl_dir, ifname)?;
     let raw = ctrl.scan_results_raw()?;
