@@ -29,6 +29,14 @@ use std::os::unix::io::RawFd;
 
 const AF_NETLINK: libc::c_int = 16;
 const NETLINK_ROUTE: libc::c_int = 0;
+/// Generic netlink (`genl`) -- the transport `ip::genetlink`/`vpn::wireguard`
+/// use to reach dynamically-registered kernel families (e.g. `"wireguard"`)
+/// that aren't part of the fixed `rtnetlink` message-type space above.
+/// Framing (`nlmsghdr`, seq/ack, dump termination) is identical between the
+/// two -- only the protocol passed to `socket(2)` and the meaning of
+/// `nlmsg_type` differ -- so [`NlSocket`] serves both rather than each
+/// getting its own copy of the same transport code.
+pub const NETLINK_GENERIC: libc::c_int = 16;
 
 const NLMSG_ALIGNTO: usize = 4;
 const NLMSG_HDRLEN: usize = 16;
@@ -136,6 +144,9 @@ impl AttrBuilder {
     pub fn u8(&mut self, rta_type: u16, v: u8) -> &mut Self {
         self.push_raw(rta_type, &[v])
     }
+    pub fn u16(&mut self, rta_type: u16, v: u16) -> &mut Self {
+        self.push_raw(rta_type, &v.to_ne_bytes())
+    }
     pub fn u32(&mut self, rta_type: u16, v: u32) -> &mut Self {
         self.push_raw(rta_type, &v.to_ne_bytes())
     }
@@ -195,14 +206,18 @@ impl NlSocket {
     /// constants) additionally receives unsolicited notifications --
     /// used by `device::discovery`'s hotplug monitor.
     pub fn with_groups(groups: u32) -> Result<Self> {
+        Self::with_protocol(NETLINK_ROUTE, groups)
+    }
+
+    /// Same as [`NlSocket::with_groups`], but against an arbitrary
+    /// netlink protocol -- `NETLINK_ROUTE` (via the two constructors
+    /// above) for rtnetlink, or [`NETLINK_GENERIC`] for a `genl`
+    /// family lookup/exchange (`ip::genetlink`).
+    pub fn with_protocol(protocol: libc::c_int, groups: u32) -> Result<Self> {
         // SAFETY: standard socket(2)/bind(2) calls with a stack-local
         // sockaddr; no pointers escape this function.
         unsafe {
-            let fd = libc::socket(
-                AF_NETLINK,
-                libc::SOCK_RAW | libc::SOCK_CLOEXEC,
-                NETLINK_ROUTE,
-            );
+            let fd = libc::socket(AF_NETLINK, libc::SOCK_RAW | libc::SOCK_CLOEXEC, protocol);
             if fd < 0 {
                 return Err(NetworkError::Netlink(format!(
                     "socket(AF_NETLINK) failed: {}",
@@ -250,6 +265,25 @@ impl NlSocket {
     /// raw payload (i.e. everything after the `nlmsghdr`).
     pub fn dump(&mut self, msg_type: u16, payload: &[u8]) -> Result<Vec<Vec<u8>>> {
         let seq = self.send(msg_type, NLM_F_REQUEST | NLM_F_DUMP, payload)?;
+        let mut out = Vec::new();
+        for (t, _flags, body) in self.recv_until_done(seq)? {
+            if t == NLMSG_ERROR {
+                check_ack(&body)?;
+            } else if t != NLMSG_DONE {
+                out.push(body);
+            }
+        }
+        Ok(out)
+    }
+
+    /// Sends a request with caller-specified extra `flags` (`NLM_F_REQUEST`
+    /// is always added) and collects every reply message's raw payload,
+    /// using the same terminal-message handling as [`NlSocket::dump`] --
+    /// but without forcing `NLM_F_DUMP`, for exchanges like generic
+    /// netlink's `CTRL_CMD_GETFAMILY` that return exactly one reply
+    /// message via a `.doit` handler rather than dump semantics.
+    pub fn query(&mut self, msg_type: u16, flags: u16, payload: &[u8]) -> Result<Vec<Vec<u8>>> {
+        let seq = self.send(msg_type, NLM_F_REQUEST | flags, payload)?;
         let mut out = Vec::new();
         for (t, _flags, body) in self.recv_until_done(seq)? {
             if t == NLMSG_ERROR {
