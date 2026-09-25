@@ -6,6 +6,7 @@
 use mitos_network::config;
 use mitos_network::ipc::client::Client;
 use mitos_network::ipc::messages::{Request, Response};
+use mitos_network::proxy::{ProxyConfig, ProxyMode};
 use mitos_network::wifi::SecurityType;
 
 fn usage() -> ! {
@@ -36,6 +37,11 @@ Usage:
   mitos-netctl bluetooth connect <mac>
   mitos-netctl bluetooth disconnect <mac>
   mitos-netctl bluetooth remove <mac>
+  mitos-netctl proxy show
+  mitos-netctl proxy resolve <url>
+  mitos-netctl proxy set none
+  mitos-netctl proxy set manual <http_proxy> [https_proxy]
+  mitos-netctl proxy set auto <pac_url>
   mitos-netctl diagnose
   mitos-netctl monitor
   mitos-netctl reload",
@@ -200,6 +206,34 @@ fn main() {
             },
             Some("remove") => Request::RemoveBluetooth {
                 mac: arg_or_usage(&args, 2),
+            },
+            _ => usage(),
+        },
+        "proxy" => match args.get(1).map(String::as_str) {
+            Some("show") => Request::GetProxyConfig,
+            Some("resolve") => Request::ResolveProxy {
+                url: arg_or_usage(&args, 2),
+            },
+            Some("set") => match args.get(2).map(String::as_str) {
+                Some("none") => Request::SetProxyConfig {
+                    config: ProxyConfig { mode: ProxyMode::None, ..Default::default() },
+                },
+                Some("manual") => Request::SetProxyConfig {
+                    config: ProxyConfig {
+                        mode: ProxyMode::Manual,
+                        http: Some(arg_or_usage(&args, 3)),
+                        https: args.get(4).cloned(),
+                        ..Default::default()
+                    },
+                },
+                Some("auto") => Request::SetProxyConfig {
+                    config: ProxyConfig {
+                        mode: ProxyMode::Auto,
+                        pac_url: Some(arg_or_usage(&args, 3)),
+                        ..Default::default()
+                    },
+                },
+                _ => usage(),
             },
             _ => usage(),
         },
