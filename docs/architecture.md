@@ -71,10 +71,15 @@ events), prints the result, and exits.
 
 ## Module map
 
-- `ip/` -- the netlink client (`netlink.rs`, private) and the public
-  policy surface on top of it: `interface`, `address`, `route`, `neighbor`,
-  `ipv4`/`ipv6` math, and `monitor` (the multicast-socket wrapper the
-  hotplug monitor uses).
+- `ip/` -- the netlink client (`netlink.rs`, `pub(crate)`: not part of
+  this crate's public API, but reachable from anywhere inside it --
+  `vpn::wireguard` reuses its transport for generic netlink rather than
+  duplicating it) and the public policy surface on top of it:
+  `interface`, `address`, `route`, `neighbor`, `ipv4`/`ipv6` math,
+  `monitor` (the multicast-socket wrapper the hotplug monitor uses),
+  and `genetlink` (generic-netlink family resolution, the piece
+  WireGuard's own netlink family needs that fixed-message-type
+  rtnetlink doesn't).
 - `device/` -- what interfaces exist and what kind/state they're in.
   `discovery` classifies interfaces (loopback / physical Ethernet / Wi-Fi /
   virtual-by-`IFLA_LINKINFO`-kind) and runs the hotplug monitor;
