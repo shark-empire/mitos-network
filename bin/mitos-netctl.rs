@@ -216,7 +216,10 @@ fn main() {
             },
             Some("set") => match args.get(2).map(String::as_str) {
                 Some("none") => Request::SetProxyConfig {
-                    config: ProxyConfig { mode: ProxyMode::None, ..Default::default() },
+                    config: ProxyConfig {
+                        mode: ProxyMode::None,
+                        ..Default::default()
+                    },
                 },
                 Some("manual") => Request::SetProxyConfig {
                     config: ProxyConfig {
