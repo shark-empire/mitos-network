@@ -6,7 +6,7 @@
 
 use super::connection::{ActiveConnection, ActiveConnectionState};
 use super::profile::ConnectionProfile;
-use crate::config::AddressMethod;
+use crate::config::{AddressMethod, Ipv6Method};
 use crate::device::{DeviceState, DeviceType, NetworkDevice};
 use crate::errors::{NetworkError, Result};
 use crate::security::secrets::SecretsBackend;
@@ -47,6 +47,8 @@ pub fn activate(
                     client_cert_path: wifi.eap_client_cert_path.as_deref(),
                     private_key_path: wifi.eap_private_key_path.as_deref(),
                     private_key_password: key_password.as_deref(),
+                    eap_method: wifi.eap_method.as_deref(),
+                    eap_phase2: wifi.eap_phase2.as_deref(),
                 })
             } else {
                 None
@@ -88,6 +90,12 @@ pub fn activate(
         AddressMethod::Auto => apply_dhcp(profile, device, index)?,
         AddressMethod::LinkLocal => { /* kernel/IPv6 SLAAC handles this; nothing to do */ }
         AddressMethod::Disabled => {}
+    }
+
+    match profile.ipv6_method {
+        Ipv6Method::Slaac => { /* kernel/IPv6 SLAAC handles this; nothing to do */ }
+        Ipv6Method::SlaacWithStatelessDhcp => apply_dhcp6_stateless(device),
+        Ipv6Method::Dhcp6 => apply_dhcp6(device, index)?,
     }
 
     if !profile.dns.is_empty() {
@@ -152,4 +160,47 @@ fn apply_dhcp(_profile: &ConnectionProfile, device: &mut NetworkDevice, index: i
     device.ipv4_addresses = vec![format!("{}/{}", lease.address, lease.prefixlen)];
     crate::persistence::state::save_lease(&device.name, &lease)?;
     Ok(())
+}
+
+fn apply_dhcp6(device: &mut NetworkDevice, index: i32) -> Result<()> {
+    let mac = crate::dhcp::get_mac(&device.name)?;
+    let lease = crate::dhcp::dhcp6::request_stateful_lease(&device.name, mac, DHCP_TIMEOUT)?;
+    crate::ip::address::add(index, std::net::IpAddr::V6(lease.address), lease.prefixlen)?;
+    if !lease.dns_servers.is_empty() {
+        let servers: Vec<std::net::IpAddr> =
+            lease.dns_servers.iter().map(|a| std::net::IpAddr::V6(*a)).collect();
+        crate::dns::resolver::apply_static(&servers, &lease.domain_search)?;
+    }
+    device.ipv6_addresses = vec![format!("{}/{}", lease.address, lease.prefixlen)];
+    crate::persistence::state::save_lease6(&device.name, &lease)?;
+    Ok(())
+}
+
+/// Unlike [`apply_dhcp6`], failure here doesn't fail activation: SLAAC
+/// has already given the device a working address by the time this
+/// runs, so a DHCPv6 server that's slow, absent, or doesn't support
+/// stateless mode just means the connection proceeds without extra
+/// DNS servers from it -- not that it's broken.
+fn apply_dhcp6_stateless(device: &NetworkDevice) {
+    let mac = match crate::dhcp::get_mac(&device.name) {
+        Ok(mac) => mac,
+        Err(_) => return,
+    };
+    match crate::dhcp::dhcp6::request_stateless_info(&device.name, mac, DHCP_TIMEOUT) {
+        Ok(info) if !info.dns_servers.is_empty() => {
+            let servers: Vec<std::net::IpAddr> =
+                info.dns_servers.iter().map(|a| std::net::IpAddr::V6(*a)).collect();
+            if let Err(e) = crate::dns::resolver::apply_static(&servers, &info.domain_search) {
+                crate::logging::logger::warn(&format!(
+                    "applying DHCPv6 stateless DNS info for {} failed: {e}",
+                    device.name
+                ));
+            }
+        }
+        Ok(_) => {}
+        Err(e) => crate::logging::logger::warn(&format!(
+            "DHCPv6 stateless Information-Request on {} failed: {e}",
+            device.name
+        )),
+    }
 }

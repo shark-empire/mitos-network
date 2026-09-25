@@ -18,6 +18,7 @@ pub fn deactivate(active: &mut ActiveConnection, device: &mut NetworkDevice) -> 
         // A DHCP lease should be released, not just abandoned, so the
         // server can hand the address to someone else promptly.
         let _ = crate::dhcp::client::release(&device.name);
+        let _ = crate::dhcp::dhcp6::release_persisted(&device.name);
         crate::ip::address::flush(index)?;
         if device.device_type == DeviceType::WiFi {
             crate::wifi::wifi::disconnect(&device.name)?;

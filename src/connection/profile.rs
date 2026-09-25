@@ -2,7 +2,7 @@
 //! TOML under `data/profiles/<id>.toml` by `persistence::profiles`;
 //! secrets are deliberately *not* fields here (see `security::secrets`).
 
-use crate::config::AddressMethod;
+use crate::config::{AddressMethod, Ipv6Method};
 use crate::device::DeviceType;
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +19,8 @@ pub struct ConnectionProfile {
     pub interface_name: Option<String>,
     #[serde(default)]
     pub method: AddressMethod,
+    #[serde(default)]
+    pub ipv6_method: Ipv6Method,
     #[serde(default)]
     pub addresses: Vec<String>,
     #[serde(default)]
@@ -80,6 +82,22 @@ pub struct WifiSettings {
     /// encrypted EAP-TLS private key.
     #[serde(default)]
     pub has_eap_secret: bool,
+    /// Pins the EAP method wpa_supplicant will negotiate (`"PEAP"`,
+    /// `"TTLS"`, `"TLS"`, ...) instead of letting it accept whatever
+    /// the RADIUS server offers first. Unpinned, a network that's
+    /// meant to be EAP-TLS-only will still let wpa_supplicant fall
+    /// back to a weaker method if a rogue/misconfigured server offers
+    /// one -- pinning is what actually enforces "this network only
+    /// ever uses EAP-TLS" rather than just configuring it as the
+    /// preference.
+    #[serde(default)]
+    pub eap_method: Option<String>,
+    /// The inner (phase 2) authentication method for tunneled EAP
+    /// methods (PEAP/TTLS), e.g. `"auth=MSCHAPV2"`. Meaningless
+    /// without `eap_method` set to a tunneling method, and ignored by
+    /// wpa_supplicant for EAP-TLS.
+    #[serde(default)]
+    pub eap_phase2: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,6 +126,7 @@ impl ConnectionProfile {
             device_type: DeviceType::WiFi,
             interface_name: None,
             method: AddressMethod::Auto,
+            ipv6_method: Ipv6Method::Slaac,
             addresses: Vec::new(),
             gateway: None,
             dns: Vec::new(),
@@ -124,6 +143,8 @@ impl ConnectionProfile {
                 eap_client_cert_path: None,
                 eap_private_key_path: None,
                 has_eap_secret: false,
+                eap_method: None,
+                eap_phase2: None,
             }),
             vpn: None,
         }
