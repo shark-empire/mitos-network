@@ -84,6 +84,32 @@ pub enum AddressMethod {
     LinkLocal,
 }
 
+/// How a connection gets its IPv6 configuration -- orthogonal to
+/// [`AddressMethod`] above, which (despite `LinkLocal` sounding
+/// IPv6-flavored) only ever governed what *this daemon* explicitly
+/// configures for the connection's primary address. SLAAC itself
+/// (via router advertisements) is the kernel's own always-on behavior
+/// and happens regardless of either setting; what varies is whether
+/// mitos-network does anything *more* than that.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Ipv6Method {
+    /// SLAAC only. Matches this crate's behavior before this field
+    /// existed, and is the right choice for the large majority of
+    /// networks.
+    #[default]
+    Slaac,
+    /// SLAAC for the address, plus a stateless DHCPv6
+    /// Information-Request for DNS servers/search domains that RAs
+    /// alone don't carry unless the network also runs RDNSS (RFC
+    /// 8106).
+    SlaacWithStatelessDhcp,
+    /// Stateful DHCPv6: request an address via IA_NA rather than
+    /// relying on SLAAC, for networks where the DHCPv6 server is the
+    /// source of truth for address assignment.
+    Dhcp6,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct InterfaceConfig {
