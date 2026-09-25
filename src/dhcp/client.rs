@@ -65,7 +65,7 @@ fn bound_broadcast_socket(ifname: &str) -> Result<UdpSocket> {
     }
 }
 
-fn get_mac(ifname: &str) -> Result<[u8; 6]> {
+pub(super) fn get_mac(ifname: &str) -> Result<[u8; 6]> {
     let iface = crate::ip::interface::get_by_name(ifname)?;
     iface
         .hwaddr
