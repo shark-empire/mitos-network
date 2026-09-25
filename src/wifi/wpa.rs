@@ -197,7 +197,9 @@ impl WpaMonitor {
         let sock = UnixDatagram::bind(&client_path)
             .map_err(|e| NetworkError::Wifi(format!("bind monitor socket: {e}")))?;
         sock.connect(&server_path).map_err(|e| {
-            NetworkError::Wifi(format!("connect monitor to wpa_supplicant at {server_path}: {e}"))
+            NetworkError::Wifi(format!(
+                "connect monitor to wpa_supplicant at {server_path}: {e}"
+            ))
         })?;
         let mon = WpaMonitor { sock, client_path };
         let reply = mon.raw_request("ATTACH")?;
