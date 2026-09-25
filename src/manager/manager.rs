@@ -576,7 +576,8 @@ impl NetworkManager {
             },
             Request::SetProxyConfig { config } => match crate::proxy::proxy::apply(&config) {
                 Ok(()) => {
-                    self.audit.record(&actor, "proxy.set", &format!("{:?}", config.mode));
+                    self.audit
+                        .record(&actor, "proxy.set", &format!("{:?}", config.mode));
                     Response::Ok
                 }
                 Err(e) => Response::Error(e.to_string()),
