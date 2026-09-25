@@ -44,6 +44,8 @@ fn required_capability(req: &Request) -> Capability {
         | Request::ListWifiNetworks { .. }
         | Request::GetConnectivity
         | Request::ListBluetoothDevices
+        | Request::GetProxyConfig
+        | Request::ResolveProxy { .. }
         | Request::Diagnose => Capability::ViewState,
         Request::AddConnection { .. }
         | Request::DeleteConnection { .. }
@@ -63,6 +65,7 @@ fn required_capability(req: &Request) -> Capability {
         | Request::ConnectBluetooth { .. }
         | Request::DisconnectBluetooth { .. }
         | Request::RemoveBluetooth { .. } => Capability::ManageBluetooth,
+        Request::SetProxyConfig { .. } => Capability::ManageProxy,
         Request::Reload => Capability::Admin,
     }
 }

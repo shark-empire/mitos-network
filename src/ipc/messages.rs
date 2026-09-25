@@ -5,6 +5,7 @@ use crate::device::{DeviceState, NetworkDevice};
 use crate::firewall::Rule;
 use crate::manager::state::NetworkState;
 use crate::monitoring::diagnostics::DiagnosticReport;
+use crate::proxy::ProxyConfig;
 use crate::wifi::{SecurityType, WifiNetwork};
 use serde::{Deserialize, Serialize};
 
@@ -91,6 +92,18 @@ pub enum Request {
     RemoveBluetooth {
         mac: String,
     },
+    SetProxyConfig {
+        config: ProxyConfig,
+    },
+    GetProxyConfig,
+    /// What proxy (or `DIRECT`) a client should use for a given URL,
+    /// per the currently-active proxy config -- the actual answer for
+    /// `ProxyMode::Auto`, which `GetProxyConfig` alone can't give
+    /// (that just returns the *config*, i.e. the PAC URL, not what it
+    /// evaluates to for any particular request).
+    ResolveProxy {
+        url: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,6 +118,8 @@ pub enum Response {
     Connectivity(ConnectivityState),
     Diagnostics(Box<DiagnosticReport>),
     BluetoothDevices(Vec<BluetoothDevice>),
+    ProxyConfig(Option<ProxyConfig>),
+    ProxyResolution(String),
     Error(String),
 }
 
