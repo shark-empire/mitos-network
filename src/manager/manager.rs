@@ -70,6 +70,12 @@ impl NetworkManager {
         }
 
         crate::dns::resolver::apply_from_config(&config.dns).ok();
+        if let Ok(Some(proxy_cfg)) = crate::persistence::state::load_proxy_config() {
+            // Best-effort, same as DNS just above: a stale/unreachable
+            // PAC URL from a previous run shouldn't block the daemon
+            // from starting.
+            let _ = crate::proxy::proxy::apply(&proxy_cfg);
+        }
 
         Ok(NetworkManager {
             config,
@@ -568,6 +574,17 @@ impl NetworkManager {
                 }
                 Err(e) => Response::Error(e.to_string()),
             },
+            Request::SetProxyConfig { config } => match crate::proxy::proxy::apply(&config) {
+                Ok(()) => {
+                    self.audit.record(&actor, "proxy.set", &format!("{:?}", config.mode));
+                    Response::Ok
+                }
+                Err(e) => Response::Error(e.to_string()),
+            },
+            Request::GetProxyConfig => Response::ProxyConfig(crate::proxy::proxy::current()),
+            Request::ResolveProxy { url } => {
+                Response::ProxyResolution(crate::proxy::proxy::resolve_for_url(&url))
+            }
             Request::GetConnectivity => Response::Connectivity(self.connectivity),
             Request::Diagnose => {
                 let devices: Vec<_> = self.devices.all().cloned().collect();
