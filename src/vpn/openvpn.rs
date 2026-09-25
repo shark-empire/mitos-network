@@ -89,10 +89,16 @@ pub fn connect(
     // device name and nothing else.
     if let Err(e) = write_script(
         &up_script,
-        &format!("#!/bin/sh\numask 077\nprintf '%s' \"$dev\" > '{}'\n", ifname_file.display()),
+        &format!(
+            "#!/bin/sh\numask 077\nprintf '%s' \"$dev\" > '{}'\n",
+            ifname_file.display()
+        ),
     )
     .and_then(|_| {
-        write_script(&down_script, &format!("#!/bin/sh\n: > '{}'\n", ifname_file.display()))
+        write_script(
+            &down_script,
+            &format!("#!/bin/sh\n: > '{}'\n", ifname_file.display()),
+        )
     }) {
         cleanup_workdir(&workdir);
         return Err(e);
@@ -223,7 +229,9 @@ pub fn connect(
             let _ = child.kill();
             let _ = child.wait();
             cleanup_workdir(&workdir);
-            return Err(NetworkError::Vpn(format!("openvpn failed to connect: {msg}")));
+            return Err(NetworkError::Vpn(format!(
+                "openvpn failed to connect: {msg}"
+            )));
         }
         Err(_) => {
             let _ = child.kill();
@@ -235,12 +243,24 @@ pub fn connect(
         }
     };
 
-    SESSIONS.lock().unwrap().get_or_insert_with(HashMap::new).insert(
-        ifname.clone(),
-        Session { child, management: stream, workdir, status },
-    );
+    SESSIONS
+        .lock()
+        .unwrap()
+        .get_or_insert_with(HashMap::new)
+        .insert(
+            ifname.clone(),
+            Session {
+                child,
+                management: stream,
+                workdir,
+                status,
+            },
+        );
 
-    Ok(VpnSession { interface_name: ifname, kind: VpnKind::OpenVpn })
+    Ok(VpnSession {
+        interface_name: ifname,
+        kind: VpnKind::OpenVpn,
+    })
 }
 
 pub fn disconnect(ifname: &str) -> Result<()> {
