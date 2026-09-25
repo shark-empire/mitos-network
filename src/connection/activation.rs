@@ -167,8 +167,11 @@ fn apply_dhcp6(device: &mut NetworkDevice, index: i32) -> Result<()> {
     let lease = crate::dhcp::dhcp6::request_stateful_lease(&device.name, mac, DHCP_TIMEOUT)?;
     crate::ip::address::add(index, std::net::IpAddr::V6(lease.address), lease.prefixlen)?;
     if !lease.dns_servers.is_empty() {
-        let servers: Vec<std::net::IpAddr> =
-            lease.dns_servers.iter().map(|a| std::net::IpAddr::V6(*a)).collect();
+        let servers: Vec<std::net::IpAddr> = lease
+            .dns_servers
+            .iter()
+            .map(|a| std::net::IpAddr::V6(*a))
+            .collect();
         crate::dns::resolver::apply_static(&servers, &lease.domain_search)?;
     }
     device.ipv6_addresses = vec![format!("{}/{}", lease.address, lease.prefixlen)];
@@ -188,8 +191,11 @@ fn apply_dhcp6_stateless(device: &NetworkDevice) {
     };
     match crate::dhcp::dhcp6::request_stateless_info(&device.name, mac, DHCP_TIMEOUT) {
         Ok(info) if !info.dns_servers.is_empty() => {
-            let servers: Vec<std::net::IpAddr> =
-                info.dns_servers.iter().map(|a| std::net::IpAddr::V6(*a)).collect();
+            let servers: Vec<std::net::IpAddr> = info
+                .dns_servers
+                .iter()
+                .map(|a| std::net::IpAddr::V6(*a))
+                .collect();
             if let Err(e) = crate::dns::resolver::apply_static(&servers, &info.domain_search) {
                 crate::logging::logger::warn(&format!(
                     "applying DHCPv6 stateless DNS info for {} failed: {e}",
