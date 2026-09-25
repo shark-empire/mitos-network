@@ -194,11 +194,16 @@ pub fn request_stateless_info(
     let mut buf = [0u8; 1500];
     let (n, _) = sock.recv_from(&mut buf)?;
     if n < 4 || buf[0] != MSG_REPLY || buf[1..4] != xid {
-        return Err(NetworkError::Dhcp("did not receive a matching DHCPv6 REPLY".into()));
+        return Err(NetworkError::Dhcp(
+            "did not receive a matching DHCPv6 REPLY".into(),
+        ));
     }
     let options = parse_options(&buf[4..n]);
     let (dns_servers, domain_search) = parse_dns_and_domain(&options);
-    Ok(StatelessInfo { dns_servers, domain_search })
+    Ok(StatelessInfo {
+        dns_servers,
+        domain_search,
+    })
 }
 
 // ---- Stateful (IA_NA) ----------------------------------------------------
@@ -382,7 +387,9 @@ fn recv_matching(sock: &UdpSocket, want_xid: [u8; 3]) -> Result<(u8, Vec<(u16, V
         return Err(NetworkError::Dhcp("DHCPv6 response too short".into()));
     }
     if buf[1..4] != want_xid {
-        return Err(NetworkError::Dhcp("DHCPv6 response transaction id mismatch".into()));
+        return Err(NetworkError::Dhcp(
+            "DHCPv6 response transaction id mismatch".into(),
+        ));
     }
     Ok((buf[0], parse_options(&buf[4..n])))
 }
@@ -517,7 +524,11 @@ fn renew_or_rebind(
     let start = Instant::now();
 
     let xid = random_xid3();
-    let server_id_ref = if include_server_id { Some(lease.server_id.as_slice()) } else { None };
+    let server_id_ref = if include_server_id {
+        Some(lease.server_id.as_slice())
+    } else {
+        None
+    };
     let msg = build_ia_request(
         msg_type,
         xid,
@@ -643,7 +654,10 @@ mod tests {
         push_option(&mut ia_na, OPT_STATUS_CODE, &status);
 
         let parsed = parse_ia_na(&ia_na).unwrap();
-        assert_eq!(parsed.status, Some((2, "no addresses available".to_string())));
+        assert_eq!(
+            parsed.status,
+            Some((2, "no addresses available".to_string()))
+        );
         assert!(require_success(&parsed).is_err());
     }
 
@@ -661,11 +675,17 @@ mod tests {
         let lease = lease_from_reply(ia, vec![1, 2, 3], vec![], vec![]).unwrap();
         // T1 defaults to 50% of valid lifetime, T2 to 87.5%.
         assert_eq!(
-            lease.renewal_time().duration_since(lease.obtained_at()).unwrap(),
+            lease
+                .renewal_time()
+                .duration_since(lease.obtained_at())
+                .unwrap(),
             Duration::from_secs(1000)
         );
         assert_eq!(
-            lease.rebind_time().duration_since(lease.obtained_at()).unwrap(),
+            lease
+                .rebind_time()
+                .duration_since(lease.obtained_at())
+                .unwrap(),
             Duration::from_secs(1750)
         );
     }
