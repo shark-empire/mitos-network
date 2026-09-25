@@ -73,13 +73,20 @@ pub fn fetch(url: &str) -> Result<String> {
         .ok_or_else(|| NetworkError::Other("malformed HTTP response fetching PAC".into()))?;
 
     let status_line = headers.lines().next().unwrap_or("");
-    if !status_line.splitn(3, ' ').nth(1).is_some_and(|code| code == "200") {
+    if !status_line
+        .splitn(3, ' ')
+        .nth(1)
+        .is_some_and(|code| code == "200")
+    {
         return Err(NetworkError::Other(format!(
             "PAC server returned: {status_line}"
         )));
     }
 
-    let body = if headers.to_ascii_lowercase().contains("transfer-encoding: chunked") {
+    let body = if headers
+        .to_ascii_lowercase()
+        .contains("transfer-encoding: chunked")
+    {
         dechunk(body)
     } else {
         body.to_string()
@@ -130,7 +137,10 @@ fn dechunk(body: &str) -> String {
             break;
         }
         out.push_str(&tail[..size]);
-        rest = tail.get(size..).and_then(|s| s.strip_prefix("\r\n")).unwrap_or("");
+        rest = tail
+            .get(size..)
+            .and_then(|s| s.strip_prefix("\r\n"))
+            .unwrap_or("");
     }
     out
 }
@@ -174,7 +184,13 @@ impl Value {
         match self {
             Value::Num(n) => *n,
             Value::Str(s) => s.trim().parse().unwrap_or(f64::NAN),
-            Value::Bool(b) => if *b { 1.0 } else { 0.0 },
+            Value::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
             Value::Null => 0.0,
         }
     }
@@ -227,23 +243,74 @@ fn tokenize(src: &str) -> Result<Vec<Tok>> {
                 }
                 i = (i + 2).min(chars.len());
             }
-            '(' => { toks.push(Tok::LParen); i += 1; }
-            ')' => { toks.push(Tok::RParen); i += 1; }
-            '{' => { toks.push(Tok::LBrace); i += 1; }
-            '}' => { toks.push(Tok::RBrace); i += 1; }
-            ';' => { toks.push(Tok::Semi); i += 1; }
-            ',' => { toks.push(Tok::Comma); i += 1; }
-            '+' => { toks.push(Tok::Plus); i += 1; }
-            '!' if chars.get(i + 1) == Some(&'=') => { toks.push(Tok::NotEq); i += 2; }
-            '!' => { toks.push(Tok::Not); i += 1; }
-            '=' if chars.get(i + 1) == Some(&'=') => { toks.push(Tok::EqEq); i += 2; }
-            '=' => { toks.push(Tok::Assign); i += 1; }
-            '&' if chars.get(i + 1) == Some(&'&') => { toks.push(Tok::AndAnd); i += 2; }
-            '|' if chars.get(i + 1) == Some(&'|') => { toks.push(Tok::OrOr); i += 2; }
-            '<' if chars.get(i + 1) == Some(&'=') => { toks.push(Tok::Le); i += 2; }
-            '<' => { toks.push(Tok::Lt); i += 1; }
-            '>' if chars.get(i + 1) == Some(&'=') => { toks.push(Tok::Ge); i += 2; }
-            '>' => { toks.push(Tok::Gt); i += 1; }
+            '(' => {
+                toks.push(Tok::LParen);
+                i += 1;
+            }
+            ')' => {
+                toks.push(Tok::RParen);
+                i += 1;
+            }
+            '{' => {
+                toks.push(Tok::LBrace);
+                i += 1;
+            }
+            '}' => {
+                toks.push(Tok::RBrace);
+                i += 1;
+            }
+            ';' => {
+                toks.push(Tok::Semi);
+                i += 1;
+            }
+            ',' => {
+                toks.push(Tok::Comma);
+                i += 1;
+            }
+            '+' => {
+                toks.push(Tok::Plus);
+                i += 1;
+            }
+            '!' if chars.get(i + 1) == Some(&'=') => {
+                toks.push(Tok::NotEq);
+                i += 2;
+            }
+            '!' => {
+                toks.push(Tok::Not);
+                i += 1;
+            }
+            '=' if chars.get(i + 1) == Some(&'=') => {
+                toks.push(Tok::EqEq);
+                i += 2;
+            }
+            '=' => {
+                toks.push(Tok::Assign);
+                i += 1;
+            }
+            '&' if chars.get(i + 1) == Some(&'&') => {
+                toks.push(Tok::AndAnd);
+                i += 2;
+            }
+            '|' if chars.get(i + 1) == Some(&'|') => {
+                toks.push(Tok::OrOr);
+                i += 2;
+            }
+            '<' if chars.get(i + 1) == Some(&'=') => {
+                toks.push(Tok::Le);
+                i += 2;
+            }
+            '<' => {
+                toks.push(Tok::Lt);
+                i += 1;
+            }
+            '>' if chars.get(i + 1) == Some(&'=') => {
+                toks.push(Tok::Ge);
+                i += 2;
+            }
+            '>' => {
+                toks.push(Tok::Gt);
+                i += 1;
+            }
             '"' | '\'' => {
                 let quote = c;
                 i += 1;
@@ -262,7 +329,9 @@ fn tokenize(src: &str) -> Result<Vec<Tok>> {
                     i += 1;
                 }
                 if i >= chars.len() {
-                    return Err(NetworkError::Parse("unterminated string in PAC script".into()));
+                    return Err(NetworkError::Parse(
+                        "unterminated string in PAC script".into(),
+                    ));
                 }
                 i += 1; // closing quote
                 toks.push(Tok::Str(s));
@@ -280,7 +349,9 @@ fn tokenize(src: &str) -> Result<Vec<Tok>> {
             }
             c if c.is_alphabetic() || c == '_' || c == '$' => {
                 let start = i;
-                while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
+                while i < chars.len()
+                    && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$')
+                {
                     i += 1;
                 }
                 toks.push(Tok::Ident(chars[start..i].iter().collect()));
@@ -411,7 +482,9 @@ impl Parser {
         let mut stmts = Vec::new();
         while *self.peek() != Tok::RBrace {
             if *self.peek() == Tok::Eof {
-                return Err(NetworkError::Parse("unexpected end of PAC script (unclosed block)".into()));
+                return Err(NetworkError::Parse(
+                    "unexpected end of PAC script (unclosed block)".into(),
+                ));
             }
             stmts.push(self.parse_stmt()?);
         }
@@ -522,8 +595,14 @@ impl Parser {
         let mut left = self.parse_relational()?;
         loop {
             match self.peek() {
-                Tok::EqEq => { self.advance(); left = Expr::Eq(Box::new(left), Box::new(self.parse_relational()?)); }
-                Tok::NotEq => { self.advance(); left = Expr::NotEq(Box::new(left), Box::new(self.parse_relational()?)); }
+                Tok::EqEq => {
+                    self.advance();
+                    left = Expr::Eq(Box::new(left), Box::new(self.parse_relational()?));
+                }
+                Tok::NotEq => {
+                    self.advance();
+                    left = Expr::NotEq(Box::new(left), Box::new(self.parse_relational()?));
+                }
                 _ => break,
             }
         }
@@ -533,10 +612,22 @@ impl Parser {
         let mut left = self.parse_additive()?;
         loop {
             match self.peek() {
-                Tok::Lt => { self.advance(); left = Expr::Lt(Box::new(left), Box::new(self.parse_additive()?)); }
-                Tok::Gt => { self.advance(); left = Expr::Gt(Box::new(left), Box::new(self.parse_additive()?)); }
-                Tok::Le => { self.advance(); left = Expr::Le(Box::new(left), Box::new(self.parse_additive()?)); }
-                Tok::Ge => { self.advance(); left = Expr::Ge(Box::new(left), Box::new(self.parse_additive()?)); }
+                Tok::Lt => {
+                    self.advance();
+                    left = Expr::Lt(Box::new(left), Box::new(self.parse_additive()?));
+                }
+                Tok::Gt => {
+                    self.advance();
+                    left = Expr::Gt(Box::new(left), Box::new(self.parse_additive()?));
+                }
+                Tok::Le => {
+                    self.advance();
+                    left = Expr::Le(Box::new(left), Box::new(self.parse_additive()?));
+                }
+                Tok::Ge => {
+                    self.advance();
+                    left = Expr::Ge(Box::new(left), Box::new(self.parse_additive()?));
+                }
                 _ => break,
             }
         }
@@ -623,10 +714,9 @@ impl<'a> Interp<'a> {
         if let Some(v) = call_builtin(name, &args)? {
             return Ok(v);
         }
-        let func = self
-            .functions
-            .get(name)
-            .ok_or_else(|| NetworkError::Other(format!("PAC script calls undefined function '{name}'")))?;
+        let func = self.functions.get(name).ok_or_else(|| {
+            NetworkError::Other(format!("PAC script calls undefined function '{name}'"))
+        })?;
         let mut scope: HashMap<String, Value> = HashMap::new();
         for (param, arg) in func.params.iter().zip(args.into_iter()) {
             scope.insert(param.clone(), arg);
@@ -637,7 +727,12 @@ impl<'a> Interp<'a> {
         }
     }
 
-    fn exec_block(&self, stmts: &[Stmt], scope: &mut HashMap<String, Value>, depth: usize) -> Result<Signal> {
+    fn exec_block(
+        &self,
+        stmts: &[Stmt],
+        scope: &mut HashMap<String, Value>,
+        depth: usize,
+    ) -> Result<Signal> {
         for stmt in stmts {
             match self.exec_stmt(stmt, scope, depth)? {
                 Signal::None => {}
@@ -647,7 +742,12 @@ impl<'a> Interp<'a> {
         Ok(Signal::None)
     }
 
-    fn exec_stmt(&self, stmt: &Stmt, scope: &mut HashMap<String, Value>, depth: usize) -> Result<Signal> {
+    fn exec_stmt(
+        &self,
+        stmt: &Stmt,
+        scope: &mut HashMap<String, Value>,
+        depth: usize,
+    ) -> Result<Signal> {
         match stmt {
             Stmt::VarDecl(name, init) => {
                 let v = match init {
@@ -703,20 +803,42 @@ impl<'a> Interp<'a> {
                     _ => Value::Str(format!("{}{}", l.as_string(), r.as_string())),
                 }
             }
-            Expr::Eq(l, r) => Value::Bool(values_eq(&self.eval(l, scope, depth)?, &self.eval(r, scope, depth)?)),
-            Expr::NotEq(l, r) => Value::Bool(!values_eq(&self.eval(l, scope, depth)?, &self.eval(r, scope, depth)?)),
+            Expr::Eq(l, r) => Value::Bool(values_eq(
+                &self.eval(l, scope, depth)?,
+                &self.eval(r, scope, depth)?,
+            )),
+            Expr::NotEq(l, r) => Value::Bool(!values_eq(
+                &self.eval(l, scope, depth)?,
+                &self.eval(r, scope, depth)?,
+            )),
             Expr::And(l, r) => {
                 let lv = self.eval(l, scope, depth)?;
-                if !lv.truthy() { lv } else { self.eval(r, scope, depth)? }
+                if !lv.truthy() {
+                    lv
+                } else {
+                    self.eval(r, scope, depth)?
+                }
             }
             Expr::Or(l, r) => {
                 let lv = self.eval(l, scope, depth)?;
-                if lv.truthy() { lv } else { self.eval(r, scope, depth)? }
+                if lv.truthy() {
+                    lv
+                } else {
+                    self.eval(r, scope, depth)?
+                }
             }
-            Expr::Lt(l, r) => Value::Bool(self.eval(l, scope, depth)?.as_num() < self.eval(r, scope, depth)?.as_num()),
-            Expr::Gt(l, r) => Value::Bool(self.eval(l, scope, depth)?.as_num() > self.eval(r, scope, depth)?.as_num()),
-            Expr::Le(l, r) => Value::Bool(self.eval(l, scope, depth)?.as_num() <= self.eval(r, scope, depth)?.as_num()),
-            Expr::Ge(l, r) => Value::Bool(self.eval(l, scope, depth)?.as_num() >= self.eval(r, scope, depth)?.as_num()),
+            Expr::Lt(l, r) => Value::Bool(
+                self.eval(l, scope, depth)?.as_num() < self.eval(r, scope, depth)?.as_num(),
+            ),
+            Expr::Gt(l, r) => Value::Bool(
+                self.eval(l, scope, depth)?.as_num() > self.eval(r, scope, depth)?.as_num(),
+            ),
+            Expr::Le(l, r) => Value::Bool(
+                self.eval(l, scope, depth)?.as_num() <= self.eval(r, scope, depth)?.as_num(),
+            ),
+            Expr::Ge(l, r) => Value::Bool(
+                self.eval(l, scope, depth)?.as_num() >= self.eval(r, scope, depth)?.as_num(),
+            ),
             Expr::Not(e) => Value::Bool(!self.eval(e, scope, depth)?.truthy()),
         })
     }
@@ -743,7 +865,9 @@ pub fn evaluate(script: &str, url: &str, host: &str) -> Result<String> {
         ));
     }
     let mut globals: HashMap<String, Value> = HashMap::new();
-    let interp = Interp { functions: &program.functions };
+    let interp = Interp {
+        functions: &program.functions,
+    };
     for stmt in &program.globals {
         interp.exec_stmt(stmt, &mut globals, 0)?;
     }
@@ -771,7 +895,11 @@ fn resolve_host(host: &str) -> Option<String> {
     if let Ok(ip) = host.parse::<std::net::IpAddr>() {
         return Some(ip.to_string());
     }
-    let addrs: Vec<std::net::IpAddr> = (host, 0u16).to_socket_addrs().ok()?.map(|a| a.ip()).collect();
+    let addrs: Vec<std::net::IpAddr> = (host, 0u16)
+        .to_socket_addrs()
+        .ok()?
+        .map(|a| a.ip())
+        .collect();
     addrs
         .iter()
         .find(|ip| ip.is_ipv4())
@@ -820,7 +948,10 @@ fn sh_exp_match(s: &str, pattern: &str) -> bool {
 }
 
 fn now_unix_days_and_secs() -> (i64, u32) {
-    let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
     (secs.div_euclid(86400), secs.rem_euclid(86400) as u32)
 }
 
@@ -859,7 +990,11 @@ fn weekday_range(args: &[Value]) -> Result<bool> {
         None => Ok(today == d1 as u32),
         Some(d2) => {
             let (d1, d2) = (d1 as u32, d2 as u32);
-            if d1 <= d2 { Ok(today >= d1 && today <= d2) } else { Ok(today >= d1 || today <= d2) }
+            if d1 <= d2 {
+                Ok(today >= d1 && today <= d2)
+            } else {
+                Ok(today >= d1 || today <= d2)
+            }
         }
     }
 }
@@ -872,7 +1007,11 @@ fn date_range(args: &[Value]) -> Result<bool> {
     match args.get(1).map(|v| v.as_num() as u32) {
         None => Ok(today == d1),
         Some(d2) => {
-            if d1 <= d2 { Ok(today >= d1 && today <= d2) } else { Ok(today >= d1 || today <= d2) }
+            if d1 <= d2 {
+                Ok(today >= d1 && today <= d2)
+            } else {
+                Ok(today >= d1 || today <= d2)
+            }
         }
     }
 }
@@ -885,7 +1024,11 @@ fn time_range(args: &[Value]) -> Result<bool> {
     match args.get(1).map(|v| v.as_num() as u32) {
         None => Ok(hour == h1),
         Some(h2) => {
-            if h1 <= h2 { Ok(hour >= h1 && hour <= h2) } else { Ok(hour >= h1 || hour <= h2) }
+            if h1 <= h2 {
+                Ok(hour >= h1 && hour <= h2)
+            } else {
+                Ok(hour >= h1 || hour <= h2)
+            }
         }
     }
 }
@@ -901,10 +1044,15 @@ fn call_builtin(name: &str, args: &[Value]) -> Result<Option<Value>> {
         "localHostOrDomainIs" => {
             let host = arg_str(args, 0)?.to_ascii_lowercase();
             let hostdom = arg_str(args, 1)?.to_ascii_lowercase();
-            Value::Bool(host == hostdom || (!host.contains('.') && hostdom.starts_with(&format!("{host}."))))
+            Value::Bool(
+                host == hostdom
+                    || (!host.contains('.') && hostdom.starts_with(&format!("{host}."))),
+            )
         }
         "isResolvable" => Value::Bool(resolve_host(&arg_str(args, 0)?).is_some()),
-        "dnsResolve" => resolve_host(&arg_str(args, 0)?).map(Value::Str).unwrap_or(Value::Null),
+        "dnsResolve" => resolve_host(&arg_str(args, 0)?)
+            .map(Value::Str)
+            .unwrap_or(Value::Null),
         "myIpAddress" => Value::Str(my_ip_address()),
         "dnsDomainLevels" => Value::Num(arg_str(args, 0)?.matches('.').count() as f64),
         "isInNet" => {
@@ -936,7 +1084,10 @@ mod tests {
                 return "DIRECT";
             }
         "#;
-        assert_eq!(evaluate(script, "http://example.com/", "example.com").unwrap(), "DIRECT");
+        assert_eq!(
+            evaluate(script, "http://example.com/", "example.com").unwrap(),
+            "DIRECT"
+        );
     }
 
     #[test]
@@ -949,7 +1100,10 @@ mod tests {
                 return "PROXY proxy.example.com:8080; DIRECT";
             }
         "#;
-        assert_eq!(evaluate(script, "http://fileserver/", "fileserver").unwrap(), "DIRECT");
+        assert_eq!(
+            evaluate(script, "http://fileserver/", "fileserver").unwrap(),
+            "DIRECT"
+        );
         assert_eq!(
             evaluate(script, "http://example.com/", "example.com").unwrap(),
             "PROXY proxy.example.com:8080; DIRECT"
@@ -969,9 +1123,18 @@ mod tests {
                 return "PROXY proxy.example.com:8080";
             }
         "#;
-        assert_eq!(evaluate(script, "x", "app.internal.example.com").unwrap(), "DIRECT");
-        assert_eq!(evaluate(script, "x", "assets.cdn.example.com").unwrap(), "PROXY cdn-proxy:8080");
-        assert_eq!(evaluate(script, "x", "example.org").unwrap(), "PROXY proxy.example.com:8080");
+        assert_eq!(
+            evaluate(script, "x", "app.internal.example.com").unwrap(),
+            "DIRECT"
+        );
+        assert_eq!(
+            evaluate(script, "x", "assets.cdn.example.com").unwrap(),
+            "PROXY cdn-proxy:8080"
+        );
+        assert_eq!(
+            evaluate(script, "x", "example.org").unwrap(),
+            "PROXY proxy.example.com:8080"
+        );
     }
 
     #[test]
@@ -988,8 +1151,14 @@ mod tests {
                 return backup;
             }
         "#;
-        assert_eq!(evaluate(script, "x", "db.corp.example.com").unwrap(), "DIRECT");
-        assert_eq!(evaluate(script, "x", "example.com").unwrap(), "PROXY backup.example.com:8080");
+        assert_eq!(
+            evaluate(script, "x", "db.corp.example.com").unwrap(),
+            "DIRECT"
+        );
+        assert_eq!(
+            evaluate(script, "x", "example.com").unwrap(),
+            "PROXY backup.example.com:8080"
+        );
     }
 
     #[test]

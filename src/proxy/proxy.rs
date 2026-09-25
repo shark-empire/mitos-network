@@ -124,8 +124,9 @@ fn apply_inner(cfg: &ProxyConfig) -> Result<()> {
             // for every single URL later -- better to surface the
             // problem now, when there's a human action (fixing the
             // profile) that caused this call.
-            pac::evaluate(&script, "http://example.com/", "example.com")
-                .map_err(|e| NetworkError::Config(format!("PAC script at {url} is invalid: {e}")))?;
+            pac::evaluate(&script, "http://example.com/", "example.com").map_err(|e| {
+                NetworkError::Config(format!("PAC script at {url} is invalid: {e}"))
+            })?;
             *PAC_CACHE.lock().unwrap() = Some(script);
             Ok(())
         }
@@ -172,7 +173,11 @@ pub fn resolve_for_url(url: &str) -> String {
 
 fn manual_directive(cfg: &ProxyConfig, url: &str) -> String {
     let host = extract_host(url).unwrap_or_default();
-    if cfg.no_proxy.iter().any(|pat| host_matches_no_proxy(&host, pat)) {
+    if cfg
+        .no_proxy
+        .iter()
+        .any(|pat| host_matches_no_proxy(&host, pat))
+    {
         return "DIRECT".to_string();
     }
     let scheme = url.split(':').next().unwrap_or("http").to_ascii_lowercase();
@@ -203,13 +208,24 @@ fn host_matches_no_proxy(host: &str, pattern: &str) -> bool {
 fn extract_host(url: &str) -> Option<String> {
     let after_scheme = url.split_once("://").map(|(_, rest)| rest).unwrap_or(url);
     let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or("");
-    let authority = authority.rsplit_once('@').map(|(_, h)| h).unwrap_or(authority);
+    let authority = authority
+        .rsplit_once('@')
+        .map(|(_, h)| h)
+        .unwrap_or(authority);
     if let Some(rest) = authority.strip_prefix('[') {
         // IPv6 literal, e.g. [::1]:8080.
-        return rest.split(']').next().map(|s| s.to_string()).filter(|s| !s.is_empty());
+        return rest
+            .split(']')
+            .next()
+            .map(|s| s.to_string())
+            .filter(|s| !s.is_empty());
     }
     let host = authority.split(':').next().unwrap_or(authority);
-    if host.is_empty() { None } else { Some(host.to_string()) }
+    if host.is_empty() {
+        None
+    } else {
+        Some(host.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -218,15 +234,27 @@ mod tests {
 
     #[test]
     fn extract_host_handles_common_shapes() {
-        assert_eq!(extract_host("http://example.com/path"), Some("example.com".to_string()));
-        assert_eq!(extract_host("https://user:pass@example.com:8080/x"), Some("example.com".to_string()));
+        assert_eq!(
+            extract_host("http://example.com/path"),
+            Some("example.com".to_string())
+        );
+        assert_eq!(
+            extract_host("https://user:pass@example.com:8080/x"),
+            Some("example.com".to_string())
+        );
         assert_eq!(extract_host("http://[::1]:8080/"), Some("::1".to_string()));
-        assert_eq!(extract_host("example.com:443"), Some("example.com".to_string()));
+        assert_eq!(
+            extract_host("example.com:443"),
+            Some("example.com".to_string())
+        );
     }
 
     #[test]
     fn no_proxy_matches_subdomains() {
-        assert!(host_matches_no_proxy("api.internal.example.com", ".example.com"));
+        assert!(host_matches_no_proxy(
+            "api.internal.example.com",
+            ".example.com"
+        ));
         assert!(host_matches_no_proxy("example.com", "example.com"));
         assert!(!host_matches_no_proxy("evil-example.com", "example.com"));
         assert!(host_matches_no_proxy("anything.at.all", "*"));
